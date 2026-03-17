@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -44,10 +45,10 @@ const NAV_ITEMS = [
 
 const REPORTS = [
   { label: "My Boards",      href: "/dashboard/adspy?view=boards", icon: Bookmark, dot: "bg-sky-400" },
-  { label: "All Active Ads",  href: "/dashboard", icon: Activity,       dot: "bg-emerald-400" },
-  { label: "Top Performers",  href: "/dashboard", icon: Sparkles,       dot: "bg-violet-400" },
-  { label: "Declining Ads",   href: "/dashboard", icon: TrendingDown,   dot: "bg-amber-400" },
-  { label: "Fatigued Ads",    href: "/dashboard", icon: AlertTriangle,  dot: "bg-rose-400" },
+  { label: "All Active Ads",  href: "/dashboard/reports/all-active", icon: Activity,       dot: "bg-emerald-400" },
+  { label: "Top Performers",  href: "/dashboard/reports/top-performers", icon: Sparkles,       dot: "bg-violet-400" },
+  { label: "Declining Ads",   href: "/dashboard/reports/declining", icon: TrendingDown,   dot: "bg-amber-400" },
+  { label: "Fatigued Ads",    href: "/dashboard/reports/fatigued", icon: AlertTriangle,  dot: "bg-rose-400" },
 ];
 
 function hrefWithDateParams(href: string, searchParams: URLSearchParams | null): string {
@@ -129,11 +130,14 @@ export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
   return (
     <aside className="flex h-full w-[240px] shrink-0 flex-col border-r border-border/70 bg-white">
       {/* Logo */}
-      <div className="flex h-[60px] items-center gap-2.5 px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(250,60%,55%)] text-white text-sm font-bold">
-          R
-        </div>
-        <span className="text-[15px] font-semibold text-foreground">Yucify</span>
+      <div className="flex h-[60px] items-center px-6">
+        <Image
+          src="/yucify-logo.png"
+          alt="Yucify"
+          width={120}
+          height={36}
+          className="h-9 w-auto object-contain"
+        />
       </div>
 
       {/* Account switcher */}
@@ -189,7 +193,9 @@ export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
             {REPORTS.map((r) => {
               const Icon = r.icon;
               const isMyBoards = r.label === "My Boards";
-              const reportActive = isMyBoards && pathname === "/dashboard/adspy" && searchParams?.get("view") === "boards";
+              const reportActive = isMyBoards
+                ? pathname === "/dashboard/adspy" && searchParams?.get("view") === "boards"
+                : pathname === r.href;
               return (
                 <Link
                   key={r.label}

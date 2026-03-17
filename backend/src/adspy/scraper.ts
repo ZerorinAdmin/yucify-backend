@@ -32,7 +32,7 @@ import {
   extractVariationFromDetailDom,
   type DomExtractedAd,
 } from "./ads-library-extract";
-import type { DebugSource, ScrapedAd } from "../../src/lib/adspy/types";
+import type { DebugSource, ScrapedAd } from "./types";
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

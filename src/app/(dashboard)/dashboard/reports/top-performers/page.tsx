@@ -1,5 +1,5 @@
 import { ComingSoon } from "@/components/features/ComingSoon";
 
-export default function AlertsPage() {
+export default function TopPerformersPage() {
   return <ComingSoon title="Coming soon, stay tuned!" />;
 }

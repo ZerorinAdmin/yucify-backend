@@ -7,22 +7,34 @@
 
 ## 1. Deploy Backend to Fly.io
 
-From repo root:
+### Prerequisites
+
+- [Fly CLI](https://fly.io/docs/hands-on/install-flyctl/) installed
+- Fly.io account (`fly auth login`)
+
+### Deploy
+
+From **repo root**:
 
 ```bash
-# Install Fly CLI: https://fly.io/docs/hands-on/install-flyctl/
-fly launch   # or fly apps create repto-backend
+# First time: create app (or skip if fly.toml already has app name)
+fly launch --no-deploy   # creates app, use existing fly.toml
+
+# Set required secret (generate with: openssl rand -hex 32)
+fly secrets set BACKEND_SECRET=<your-secret>
+
+# Optional: persistent Facebook login (reduces login walls)
+fly secrets set ADSPY_FACEBOOK_PROFILE=/data/fb-profile
+
+# Deploy
 fly deploy
 ```
 
-Set secrets:
+### After deploy
 
-```bash
-fly secrets set BACKEND_SECRET=<random-secret>
-fly secrets set ADSPY_FACEBOOK_PROFILE=/data/fb-profile  # optional, for persistent login
-```
-
-Get your backend URL: `https://repto-backend.fly.dev`
+- Backend URL: `https://repto-backend.fly.dev` (or your app name)
+- Health check: `curl https://repto-backend.fly.dev/health` (returns 401 without secret)
+- Test with secret: `curl -H "X-Backend-Secret: YOUR_SECRET" https://repto-backend.fly.dev/health`
 
 ## 2. Deploy Frontend to Vercel
 

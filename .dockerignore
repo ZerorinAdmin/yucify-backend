@@ -1,0 +1,16 @@
+# Backend Docker build (context: repo root)
+# Speeds up fly deploy by excluding unneeded files
+
+node_modules
+.next
+.git
+.env
+.env.*
+*.log
+facebook-profile
+.browser-profile
+.cursor
+docs
+supabase
+public
+*.md
