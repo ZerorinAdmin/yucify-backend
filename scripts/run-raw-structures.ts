@@ -13,7 +13,7 @@
  *   ADSPY_HEADLESS=false    - show browser (useful for login setup)
  */
 
-import { captureRawStructures } from "../src/lib/adspy/scraper";
+import { captureRawStructures } from "../backend/src/adspy/scraper";
 import * as path from "path";
 import * as fs from "fs";
 

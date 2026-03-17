@@ -3,7 +3,14 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import type { SearchPageResult } from "./page-search";
+
+type SearchPageResult = {
+  name: string;
+  url: string;
+  logo: string | null;
+  verified: boolean;
+  page_id?: string;
+};
 
 const CACHE_HOURS = 24;
 

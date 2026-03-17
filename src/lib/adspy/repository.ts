@@ -3,7 +3,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import type { ScrapedAd } from "./scraper";
+import type { ScrapedAd } from "./types";
 
 const CACHE_HOURS = 24;
 

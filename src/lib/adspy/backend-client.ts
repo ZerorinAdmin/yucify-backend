@@ -3,7 +3,7 @@
  * When ADSPY_BACKEND_URL is set, Vercel API routes proxy scrape/search/resolve to the backend.
  */
 
-import type { ScrapedAd } from "./scraper";
+import type { ScrapedAd } from "./types";
 
 const BACKEND_URL = process.env.ADSPY_BACKEND_URL?.replace(/\/$/, "");
 const BACKEND_SECRET = process.env.ADSPY_BACKEND_SECRET;

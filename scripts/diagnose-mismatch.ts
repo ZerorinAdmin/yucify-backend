@@ -11,7 +11,7 @@ import {
   extractAdsFromHtml,
   diagnoseAdChunkOverlap,
   findAllAdIdOccurrences,
-} from "../src/lib/adspy/ads-library-extract";
+} from "../backend/src/adspy/ads-library-extract";
 import * as fs from "fs";
 import * as path from "path";
 

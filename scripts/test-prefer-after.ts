@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /** Quick test: verify prefer-after picks correct video for ad 1118973763485810 */
-import { extractAdsFromHtml } from "../src/lib/adspy/ads-library-extract";
+import { extractAdsFromHtml } from "../backend/src/adspy/ads-library-extract";
 import * as fs from "fs";
 import * as path from "path";
 

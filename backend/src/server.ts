@@ -5,9 +5,9 @@
  */
 
 import express from "express";
-import { scrapePageAds } from "../../src/lib/adspy/scraper.js";
-import { searchPages } from "../../src/lib/adspy/scraper.js";
-import { resolvePageFromUrl } from "../../src/lib/adspy/page-resolver.js";
+import { scrapePageAds } from "./adspy/scraper.js";
+import { searchPages } from "./adspy/scraper.js";
+import { resolvePageFromUrl } from "./adspy/page-resolver.js";
 
 const app = express();
 app.use(express.json());

@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/playwright:v1.49.0-noble
 
 WORKDIR /app
 
-# Copy backend and shared src (backend imports from ../../src/lib/adspy)
+# Copy backend and shared src types (backend imports from ../../src/lib/adspy/types)
 COPY backend/package*.json backend/
 RUN cd backend && npm ci --omit=dev
 

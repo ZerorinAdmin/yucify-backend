@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { ScrapedAd } from "@/lib/adspy/scraper";
+import type { ScrapedAd } from "@/lib/adspy/types";
 import { isBackendConfigured, backendScrape } from "@/lib/adspy/backend-client";
 import {
   getCachedAds,

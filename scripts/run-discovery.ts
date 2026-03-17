@@ -14,7 +14,7 @@
  *   ADSPY_HEADLESS=false    - show browser (useful for login setup)
  */
 
-import { runDiscovery, writeReportToFile, reportToMarkdown } from "../src/lib/adspy/ads-library-discovery";
+import { runDiscovery, writeReportToFile, reportToMarkdown } from "../backend/src/adspy/ads-library-discovery";
 import * as path from "path";
 import * as fs from "fs";
 

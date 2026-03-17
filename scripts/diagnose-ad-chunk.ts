@@ -9,7 +9,7 @@
  * To get HTML: Save the Ads Library page from browser (Cmd+S) or use a minimal capture.
  */
 
-import { diagnoseAdChunkOverlap } from "../src/lib/adspy/ads-library-extract";
+import { diagnoseAdChunkOverlap } from "../backend/src/adspy/ads-library-extract";
 import * as fs from "fs";
 import * as path from "path";
 
