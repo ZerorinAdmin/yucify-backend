@@ -1,0 +1,295 @@
+---
+description: Canonical development requirements for Repto - Meta Ads Reporting & Spy Tool. Follow development order strictly.
+alwaysApply: true
+---
+
+<!-- AGENT INSTRUCTIONS: This document is the authoritative requirements for Repto development. Follow "Development Order (Mandatory)" strictly—no skipping, no parallel feature building. Respect "Out of Scope" constraints. Apply Security and Testing requirements to every module. -->
+
+# 🚀 Meta Ads Reporting & Spy Tool — Beta Requirements
+
+Balanced MVP (Monitoring 70% | Spy 30%)
+
+---
+
+# 🛡 PART 1 — Ad Monitoring (Core Value)
+
+---
+
+## 1️⃣ Authentication
+
+### Providers:
+- Google OAuth
+- Facebook OAuth (required for Meta Ads access)
+
+### Requirements:
+
+- Users can sign up / log in via:
+  - Google
+  - Facebook
+
+- Facebook login must request:
+  - ads_read permission
+  - business_management (if required for account listing)
+
+- Store:
+  - provider
+  - provider_user_id
+  - email
+
+---
+
+## 2️⃣ Meta Account Connection
+
+After Facebook login:
+
+User must:
+
+- Select Ad Account
+- Grant access
+- Store:
+  - ad_account_id
+  - encrypted_access_token
+  - token_expiry
+
+Implement:
+
+- Token refresh logic
+- Automatic refresh before expiry
+- Error handling if token invalid
+
+---
+
+## 3️⃣ Metrics Pulling
+
+Pull ONLY:
+
+- Spend
+- Impressions
+- Clicks
+- CTR
+- CPC
+- Frequency
+- ROAS
+
+Granularity:
+
+- Daily level
+- Store snapshot per day
+- Do NOT recalculate live
+
+Database tables:
+
+User
+MetaAccount
+AdAccount
+AdMetrics (daily)
+
+---
+
+## 4️⃣ Creative Health Monitor (Rule-Based)
+
+Create:
+
+analyzeAdHealth(last_7_days_data)
+
+Return:
+
+status:
+- HEALTHY
+- DECLINING
+- FATIGUED
+
+Rules:
+
+- CTR drops > 20% over 3 days
+- CPC increases > 25%
+- Frequency > 3
+- ROAS declining 3 consecutive days
+
+Rules must be configurable via ENV variables.
+
+Dashboard must show:
+
+🟢 Healthy
+🟡 Declining
+🔴 Fatigued
+
+Include tooltip explanation.
+
+---
+
+## 5️⃣ Email Alerts
+
+Trigger when:
+
+- Status changes from HEALTHY → DECLINING/FATIGUED
+
+Send:
+
+- Ad name
+- Triggered rule
+- Suggested manual review
+
+Must use queue system (no blocking API route).
+
+---
+
+## 6️⃣ Weekly AI Summary
+
+Runs:
+
+- Once per week per ad account
+
+Input to AI:
+
+{
+  biggest_metric_change,
+  top_performing_ad,
+  worst_performing_ad,
+  trend_summary
+}
+
+AI must return:
+
+{
+  summary: string,
+  suggested_action: string
+}
+
+Limit:
+- Max 300 tokens
+
+Store summary in DB.
+Do not regenerate unless manually triggered.
+
+---
+
+# ⚔ PART 2 — AdSpy (Lightweight Support)
+
+---
+
+## 7️⃣ Meta Ad Library Search
+
+Features:
+
+- Keyword search
+- Country filter
+- Page filter
+- Pagination
+
+Store minimal fields:
+
+SpyAd:
+- ad_id
+- page_name
+- ad_copy
+- creative_url
+- country
+- first_seen
+- last_seen
+
+Do NOT:
+- Estimate impressions
+- Scrape aggressively
+- Run background crawling
+
+Search must be user-triggered.
+
+---
+
+## 8️⃣ Inspiration Board
+
+Users can:
+
+- Save SpyAd
+- Add client label
+- Add tag
+- Add note
+
+Simple CRUD operations.
+
+Must enforce:
+- Ownership validation
+- Tag filtering
+
+---
+
+## 9️⃣ AI Creative Tagging
+
+Triggered manually via "Analyze".
+
+Send to AI:
+
+- ad_copy
+- creative_url (optional)
+
+AI must return:
+
+{
+  hook_type,
+  emotional_trigger,
+  creative_format,
+  short_explanation
+}
+
+Strict schema validation required.
+Cache result.
+Do not auto-reanalyze.
+
+---
+
+# 🔐 Security Requirements
+
+- Encrypt all Meta tokens
+- Enforce Row Level Security in Supabase
+- Rate limit AI endpoint
+- Rate limit AdSpy search
+- Validate ownership on all reads
+
+---
+
+# 🧪 Testing Requirements
+
+Each module must have:
+
+- Unit tests
+- Integration tests
+- Mocked external services
+
+Minimum coverage: 80%
+
+No module considered complete without passing tests.
+
+---
+
+# 🧠 Development Order (Mandatory)
+
+1. Auth
+2. Meta connection
+3. Metrics pull + storage
+4. Health engine
+5. Dashboard UI
+6. Email alerts
+7. Weekly AI summary
+8. Ad library search
+9. Inspiration board
+10. AI creative tagging
+
+No skipping.
+No parallel feature building.
+
+---
+
+# ❌ Out of Scope (Beta)
+
+- Predictive modeling
+- Impression estimation
+- Budget optimization
+- Auto ad suggestions
+- Campaign editing
+- Multi-platform integration
+- Heavy analytics
+
+---
+
+This MVP must stay lean, deterministic, and stable.

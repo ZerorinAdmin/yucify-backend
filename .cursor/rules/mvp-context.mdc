@@ -1,0 +1,185 @@
+---
+description: Repto MVP scope - Ad Monitoring & AdSpy SaaS product requirements
+alwaysApply: true
+---
+
+# 🧱 GLOBAL ENGINEERING RULES
+
+You are building a production-ready SaaS Beta for Meta Ads Monitoring + Spy Tool.
+
+Strictly follow these rules.
+
+---
+
+## 1️⃣ Development Philosophy
+
+- Build ONE module at a time.
+- Do NOT move to the next module unless:
+  - Current module compiles
+  - No TypeScript errors
+  - Unit tests written
+  - Integration test written
+  - All tests passing
+- Refactor before proceeding.
+- No placeholder logic.
+- No fake/mock production logic.
+
+---
+
+## 2️⃣ Architecture Rules
+
+Use Clean Architecture:
+
+Controller → Service → Repository → Database
+
+Rules:
+
+- No business logic inside controllers.
+- No direct DB calls inside controllers.
+- All external APIs must go through Service layer.
+- Repository layer handles Supabase interaction only.
+- Every module must be independently testable.
+
+---
+
+## 3️⃣ Tech Stack (Non-Negotiable)
+
+Frontend:
+- Next.js (App Router)
+- TypeScript (strict mode)
+- Tailwind
+- Zustand
+- Recharts
+
+Backend:
+- Next.js API Routes
+- TypeScript
+- Supabase (PostgreSQL)
+- Zod (validation)
+- Jest (testing)
+
+---
+
+## 4️⃣ Folder Structure
+
+/src
+  /app
+  /components
+  /modules
+      /auth
+      /meta
+      /monitoring
+      /adspy
+      /ai
+  /services
+  /repositories
+  /lib
+  /types
+/tests
+
+Each module must contain:
+
+controller.ts
+service.ts
+repository.ts
+types.ts
+validation.ts
+/tests
+
+---
+
+## 5️⃣ Type Safety Rules
+
+- Strict TypeScript mode enabled.
+- No `any` types.
+- All API inputs validated using Zod.
+- All external API responses validated before usage.
+
+---
+
+## 6️⃣ Supabase Rules
+
+- All DB writes must be inside transactions where applicable.
+- Use Row Level Security (RLS).
+- Enforce user ownership on all data queries.
+- Never expose service role key to frontend.
+- Use server-side Supabase client for privileged actions.
+
+---
+
+## 7️⃣ Security Rules
+
+- Encrypt Meta access tokens before storing.
+- Store token expiry and implement refresh logic.
+- Rate limit:
+  - AI endpoints
+  - Spy search endpoint
+- Validate user ownership before returning data.
+- No client-side secrets.
+
+---
+
+## 8️⃣ AI Usage Rules
+
+AI is allowed ONLY for:
+
+- Weekly Summary generation
+- Creative Tagging (manual click only)
+
+AI is NOT allowed for:
+
+- Health scoring
+- Metric calculation
+- Trend detection
+- Dashboard rendering
+
+AI must:
+- Receive structured JSON
+- Return strict JSON schema
+- Be validated before saving
+
+Max tokens: 300 per request.
+
+---
+
+## 9️⃣ Testing Rules
+
+Before completing any module:
+
+- Unit tests for:
+  - Services
+  - Rule engines
+  - AI schema validation
+- Integration test for:
+  - DB operations
+  - API route
+- Mock:
+  - Meta API
+  - AI API
+  - Email service
+
+Minimum coverage: 80%
+
+If coverage < 80%, do not proceed.
+
+---
+
+## 🔟 Logging Rules
+
+- Log all external API errors.
+- Log token refresh failures.
+- Do not expose internal errors to frontend.
+- Use structured logging format.
+
+---
+
+## 11️⃣ Deployment Rules
+
+- No console.log in production.
+- All environment variables validated on startup.
+- App must build without warnings.
+- Production build must pass tests.
+
+---
+
+Violation of any rule requires fixing before new feature development.

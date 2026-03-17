@@ -1,0 +1,34 @@
+=== AD CHUNK OVERLAP DIAGNOSIS ===
+
+Target ad: 1118973763485810 at index 1745534
+Prev ad: 1816728115937660
+Next ad: 1297720635316986
+
+Chunk: [1715534, 1795534] size=80000 chars
+Text chunk: [1739002, 1752090]
+
+Ads in chunk: 6
+  - 1816728115937660 at 1739002 (dist from target: 6532)
+  - 1118973763485810 at 1745534 (dist from target: 0) <-- TARGET
+  - 1297720635316986 at 1752090 (dist from target: 6556)
+  - 10093278074132067 at 1762874 (dist from target: 17340)
+  - 1120053313555435 at 1773745 (dist from target: 28211)
+  - 734381212760182 at 1785839 (dist from target: 40305)
+
+Video matches in chunk: 4
+  [0] pos=1742118 dist=3416 is_first=true
+      url: https:\/\/video.fdel83-1.fna.fbcdn.net\/o1\/v\/t2\/f2\/m366\/AQNIsSzsbPY9PmrqrrN...
+  [1] pos=1743683 dist=1851 is_first=false
+      url: https:\/\/video.fdel83-1.fna.fbcdn.net\/o1\/v\/t2\/f2\/m412\/AQNf67S2i-r_7Wwbh8l...
+  [2] pos=1748661 dist=3127 is_first=false
+      url: https:\/\/video.fdel83-1.fna.fbcdn.net\/o1\/v\/t2\/f2\/m366\/AQOlP_15iphBwjhbWaH...
+  [3] pos=1750224 dist=4690 is_first=false
+      url: https:\/\/video.fdel83-1.fna.fbcdn.net\/o1\/v\/t2\/f2\/m69\/AQOZnBCFrroNVdDYMLiU...
+
+*** VIDEO WE PICK (first match): dist=3416
+    url: https:\/\/video.fdel83-1.fna.fbcdn.net\/o1\/v\/t2\/f2\/m366\/AQNIsSzsbPY9PmrqrrN...
+
+Text matches in text chunk: 0
+
+*** ROOT CAUSE: We pick the FIRST video in chunk, but the NEAREST to ad_id is at dist=1851
+    The first match may belong to a different ad (chunk overlap).

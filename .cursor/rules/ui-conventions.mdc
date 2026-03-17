@@ -1,0 +1,31 @@
+---
+description: Use shadcn/ui components only—do not build custom UI components from scratch
+alwaysApply: true
+---
+
+# UI Conventions
+
+## Use shadcn/ui Only
+
+- **Always use shadcn/ui components** for all UI elements. Do not build buttons, inputs, cards, modals, dropdowns, etc. from scratch with raw HTML/Tailwind.
+- **Add components as needed:** Run `npx shadcn@latest add <component>` before implementing a feature that needs it.
+- **Import from** `@/components/ui/` (e.g., `import { Button } from "@/components/ui/button"`).
+
+## Common shadcn Components
+
+| Use Case | Component |
+|----------|-----------|
+| Buttons, links | `Button` |
+| Cards, sections | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` |
+| Form inputs | `Input`, `Label`, `Checkbox`, `RadioGroup`, `Select` |
+| Tables | `Table` |
+| Dropdowns, menus | `DropdownMenu`, `Select` |
+| Modals, dialogs | `Dialog`, `AlertDialog` |
+| Feedback | `Toast`, `Alert`, `Skeleton` |
+| Navigation | `Tabs`, `NavigationMenu` |
+
+## When a Component Doesn't Exist
+
+1. Add it: `npx shadcn@latest add <component-name>`
+2. If shadcn has no equivalent, compose from existing shadcn primitives
+3. Only use raw HTML + Tailwind as a last resort, and keep it minimal

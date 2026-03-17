@@ -1,0 +1,61 @@
+=== MISMATCH DIAGNOSTIC ===
+
+HTML length: 1926385 chars
+page_id: 617324415443569
+Target ad_ids: 3093932810784164, 1957280865133857, 1118973763485810
+
+--- 1. AD_ID OCCURRENCES (findAdIdMatches uses LAST) ---
+
+Ad 3093932810784164:
+  Total occurrences: 1
+  Indices: 1810091
+  Index we use (last): 1810091
+
+Ad 1957280865133857:
+  Total occurrences: 1
+  Indices: 1816671
+  Index we use (last): 1816671
+
+Ad 1118973763485810:
+  Total occurrences: 1
+  Indices: 1745534
+  Index we use (last): 1745534
+
+--- 2. CHUNK OVERLAP (skipped with --quick) ---
+
+--- 3. EXTRACTED ADS (extractAdsFromHtml) ---
+
+Ad 3093932810784164:
+  ad_text: "HYROS is the dominant tracking solution for coaching courses, and education. Your course ads will simply make more. Guar..."
+  video_url: https://video.fdel83-1.fna.fbcdn.net/o1/v/t2/f2/m366/AQMeGQ3bp0aH82-Ee9wvh1AMh3D...
+  image_url: yes
+  carousel_urls: 1
+
+Ad 1957280865133857:
+  ad_text: "Our Tracking + AI factually improves ad ROI. By a lot. Verified by 5000+ businesses. Here's how. It's actually quite sim..."
+  video_url: null
+  image_url: null
+  carousel_urls: 0
+
+Ad 1118973763485810:
+  ad_text: "Our Tracking + AI factually improves ad ROI. By a lot. Verified by 3000+ businesses. Here's how. It's actually quite sim..."
+  video_url: https://video.fdel83-1.fna.fbcdn.net/o1/v/t2/f2/m366/AQOlP_15iphBwjhbWaH4qLtyaar...
+  image_url: yes
+  carousel_urls: 1
+
+--- 4. TEXT CHUNK OVERLAP (first match can be wrong) ---
+
+Ad 3093932810784164 textChunk [1797989, 1816671] (18682 chars):
+  First primary_text: "none..."
+  First ad_creative_body: "none..."
+  Prev ad ends at 1797989 - first match could belong to prev ad if it appears before our ad_id
+
+Ad 1957280865133857 textChunk [1810091, 1828746] (18655 chars):
+  First primary_text: "none..."
+  First ad_creative_body: "none..."
+  Prev ad ends at 1810091 - first match could belong to prev ad if it appears before our ad_id
+
+Ad 1118973763485810 textChunk [1739002, 1752090] (13088 chars):
+  First primary_text: "none..."
+  First ad_creative_body: "none..."
+  Prev ad ends at 1739002 - first match could belong to prev ad if it appears before our ad_id
