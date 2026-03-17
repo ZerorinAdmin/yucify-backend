@@ -69,5 +69,7 @@ ADSPY_FACEBOOK_PROFILE=./fb-profile  # optional
 
 ## 4. Notes
 
-- **Playwright**: Moved to `optionalDependencies` so Vercel can build without it. The `/api/adspy/debug` route requires Playwright and only works when running the full stack locally.
+- **Backend excluded from Vercel**: The `backend/` folder is in `.vercelignore` and `tsconfig.json` exclude. It deploys only to Fly.io.
+- **Playwright**: Not used on Vercel. The `/api/adspy/debug` route returns 503 when deployed; full diagnostics require running locally.
+- **Resend**: `RESEND_API_KEY` is required only at runtime when sending alerts. Build succeeds without it.
 - **Backend auth**: All backend requests must include `X-Backend-Secret` header. Only the Vercel API routes call the backend; never expose the secret to the client.
