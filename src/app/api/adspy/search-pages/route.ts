@@ -57,10 +57,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const { pages } = await backendSearchPages(q, country);
 
-    if (pages.length === 0) {
-      return NextResponse.json({ error: "No advertisers found" }, { status: 404 });
-    }
-
     // Filter to only advertisers whose name matches the search query (e.g. "Nike" -> Nike, Nike US, Nike India)
     const queryWords = q
       .toLowerCase()
@@ -70,10 +66,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       const name = (p.page_name ?? "").toLowerCase();
       return queryWords.every((word) => name.includes(word));
     });
-
-    if (filtered.length === 0) {
-      return NextResponse.json({ error: "No matching advertisers found" }, { status: 404 });
-    }
 
     return NextResponse.json({
       pages: filtered.map((p) => ({

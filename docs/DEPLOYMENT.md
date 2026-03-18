@@ -23,12 +23,44 @@ fly launch --no-deploy   # creates app, use existing fly.toml
 # Set required secret (generate with: openssl rand -hex 32)
 fly secrets set BACKEND_SECRET=<your-secret>
 
-# Optional: persistent Facebook login (reduces login walls)
-fly secrets set ADSPY_FACEBOOK_PROFILE=/data/fb-profile
+# Create volume (first time only; use your primary region e.g. iad)
+fly volumes create fb_profile --region iad -a yucify-backend --size 1
 
 # Deploy
 fly deploy
 ```
+
+### One-time: Set up Facebook login (persistent session)
+
+The scraper needs a logged-in Facebook session to fetch ads. A Fly volume persists the session across deploys.
+
+**Step 1: Create the profile locally**
+
+```bash
+cd backend
+ADSPY_FACEBOOK_PROFILE=./facebook-profile ADSPY_HEADLESS=false npm run dev
+```
+
+1. A browser window opens. Log in to Facebook manually.
+2. Wait for the scraper to detect login (or close after logging in).
+3. Stop the server (Ctrl+C). The session is saved in `facebook-profile/`.
+
+**Step 2: Upload the profile to Fly**
+
+```bash
+# Ensure a machine is running (trigger a request to your app, or: fly scale count 1 -a yucify-backend)
+fly ssh sftp shell -a yucify-backend
+
+# In the sftp shell, from the backend/ directory:
+put -r facebook-profile /data/
+exit
+```
+
+This creates `/data/facebook-profile` (matches ADSPY_FACEBOOK_PROFILE in fly.toml).
+
+**Step 3: Redeploy**
+
+The app will use the persisted session. When the session expires (typically every few weeks), repeat Steps 1–2.
 
 ### After deploy
 

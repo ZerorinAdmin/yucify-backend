@@ -1,19 +1,26 @@
+import "dotenv/config";
+
 /**
  * Repto backend - AdSpy scraper service for Fly.io.
  * Exposes scrape, search-pages, resolve-page endpoints.
  * Vercel API routes proxy to this service.
+ *
+ * Scraper is lazy-loaded so the server starts quickly and Fly.io can reach it
+ * before Playwright initializes.
  */
 
 import express from "express";
-import { scrapePageAds } from "./adspy/scraper.js";
-import { searchPages } from "./adspy/scraper.js";
-import { resolvePageFromUrl } from "./adspy/page-resolver.js";
 
 const app = express();
 app.use(express.json());
 
 const BACKEND_SECRET = process.env.BACKEND_SECRET;
 const PORT = Number(process.env.PORT) || 8080;
+
+/** Health check - public, no auth. Fly.io uses this to verify the app is up. */
+app.get("/health", (_req, res) => {
+  res.json({ ok: true });
+});
 
 function requireSecret(req: express.Request, res: express.Response, next: express.NextFunction) {
   const secret = req.headers["x-backend-secret"];
@@ -34,6 +41,7 @@ app.post("/scrape", async (req, res) => {
       res.status(400).json({ error: "page_id is required" });
       return;
     }
+    const { scrapePageAds } = await import("./adspy/scraper.js");
     const countryNorm =
       (country as string).toUpperCase() === "WW" || (country as string).toUpperCase() === "WORLDWIDE"
         ? "ALL"
@@ -61,6 +69,7 @@ app.get("/search-pages", async (req, res) => {
       res.status(400).json({ error: "q is required" });
       return;
     }
+    const { searchPages } = await import("./adspy/scraper.js");
     const pages = await searchPages(q, country);
     res.json({ pages });
   } catch (err) {
@@ -78,6 +87,7 @@ app.post("/resolve-page", async (req, res) => {
       res.status(400).json({ error: "page_url is required" });
       return;
     }
+    const { resolvePageFromUrl } = await import("./adspy/page-resolver.js");
     const countryNorm =
       (country as string).toUpperCase() === "WW" || (country as string).toUpperCase() === "WORLDWIDE"
         ? "ALL"
@@ -94,10 +104,6 @@ app.post("/resolve-page", async (req, res) => {
   }
 });
 
-app.get("/health", (_req, res) => {
-  res.json({ ok: true });
-});
-
-app.listen(PORT, () => {
-  console.log(`[backend] Listening on port ${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`[backend] Listening on 0.0.0.0:${PORT}`);
 });
