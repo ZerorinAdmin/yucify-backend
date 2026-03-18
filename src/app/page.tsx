@@ -1,12 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { SignInButtons } from "@/components/auth/SignInButtons";
 
 export default async function HomePage() {
@@ -20,18 +13,18 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome to Yucify</CardTitle>
-          <CardDescription>
-            Meta Ads Intelligence & Spy Tool
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-white">
+      <div className="w-full max-w-sm flex flex-col items-center text-center">
+        <h1 className="text-2xl font-bold text-foreground">
+          Try Yucify for free
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          Meta intelligence tool for your successful ads campaign.
+        </p>
+        <div className="mt-8 w-full max-w-xs">
           <SignInButtons />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </main>
   );
 }
