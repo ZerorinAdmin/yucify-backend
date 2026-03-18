@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { SignInButtons } from "@/components/auth/SignInButtons";
@@ -15,6 +16,13 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-white">
       <div className="w-full max-w-sm flex flex-col items-center text-center">
+        <Image
+          src="/yucify-logo.png"
+          alt="Yucify"
+          width={140}
+          height={42}
+          className="mb-6 w-auto h-10 object-contain"
+        />
         <h1 className="text-2xl font-bold text-foreground">
           Try Yucify for free
         </h1>
