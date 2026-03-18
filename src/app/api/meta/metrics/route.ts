@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { getMetaToken } from "@/lib/meta/token";
 import { pullMetrics } from "@/lib/meta/metrics";
 import { pullCreatives } from "@/lib/meta/creatives";
+import { serverLogger, flushLogs } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -45,7 +47,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[api/meta/metrics]", message);
+    serverLogger.error("Meta metrics pull failed", {
+      endpoint: "/api/meta/metrics",
+      error: message,
+    });
+    after(flushLogs);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
