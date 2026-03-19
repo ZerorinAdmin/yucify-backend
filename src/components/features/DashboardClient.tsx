@@ -43,7 +43,7 @@ function EmptyDateRangeState({ dateFrom, dateTo }: { dateFrom: string; dateTo: s
         <span className="font-semibold text-foreground">{formatDateDisplay(dateTo)}</span>.
       </p>
       <p className="mt-4 text-[13px] text-muted-foreground text-center max-w-md">
-        Try selecting a different date range using the date picker in the top right.
+        Try selecting a different date range using the date picker in the top right and click <b>"SYNC"</b>.
       </p>
     </div>
   );
