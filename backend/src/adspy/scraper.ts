@@ -94,9 +94,6 @@ async function createContext(): Promise<{
       headless: HEADLESS,
       args: stealthArgs,
       viewport: { width: 1280, height: 900 },
-      locale: "en-US",
-      userAgent: randomUserAgent(),
-      extraHTTPHeaders: { "Accept-Language": "en-US,en;q=0.9" },
     });
     return {
       context,

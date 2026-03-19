@@ -47,13 +47,36 @@ ADSPY_FACEBOOK_PROFILE=./facebook-profile ADSPY_HEADLESS=false npm run dev
 
 **Step 2: Upload the profile to Fly**
 
-```bash
-# Ensure a machine is running (trigger a request to your app, or: fly scale count 1 -a yucify-backend)
-fly ssh sftp shell -a yucify-backend
+Create a session-only archive (keeps Cookies, Local Storage; ~300KB):
 
-# In the sftp shell, from the backend/ directory:
-put -r facebook-profile /data/
-exit
+```bash
+cd backend
+tar czf facebook-profile-session.tar.gz \
+  --exclude='*Cache*' \
+  --exclude='*Code Cache*' \
+  --exclude='*GPUCache*' \
+  --exclude='*Crashpad*' \
+  --exclude='*Service Worker*' \
+  --exclude='*blob_storage*' \
+  facebook-profile
+```
+
+**Option A: Pipe via SSH** (recommended; avoids SFTP connection drops):
+
+```bash
+fly machine start <MACHINE_ID> -a yucify-backend   # if stopped
+cat facebook-profile-session.tar.gz | fly ssh console -a yucify-backend -C "sh -c 'cd /data && cat > facebook-profile-session.tar.gz'"
+fly ssh console -a yucify-backend -C "sh -c 'cd /data && rm -rf facebook-profile && tar xzf facebook-profile-session.tar.gz'"
+fly apps restart yucify-backend
+```
+
+**Option B: SFTP** (for small files only; connection may drop on larger uploads):
+
+```bash
+fly ssh sftp shell -a yucify-backend
+cd /data
+put facebook-profile-session.tar.gz /data/facebook-profile-session.tar.gz
+# Then SSH in to extract: rm -rf facebook-profile && tar xzf facebook-profile-session.tar.gz
 ```
 
 This creates `/data/facebook-profile` (matches ADSPY_FACEBOOK_PROFILE in fly.toml).
