@@ -70,10 +70,12 @@ function simpleHash(s: string): string {
 }
 
 const PROFILE_PATH = process.env.ADSPY_FACEBOOK_PROFILE;
+const STORAGE_STATE_PATH = process.env.ADSPY_FACEBOOK_STATE;
 const HEADLESS = process.env.ADSPY_HEADLESS !== "false";
 
 /**
- * Create browser context. Uses persistent profile if ADSPY_FACEBOOK_PROFILE is set.
+ * Create browser context.
+ * Priority: ADSPY_FACEBOOK_STATE (storageState) > ADSPY_FACEBOOK_PROFILE (persistent) > plain context.
  * Set ADSPY_HEADLESS=false for one-time login setup (browser opens visible).
  */
 async function createContext(): Promise<{
@@ -86,6 +88,28 @@ async function createContext(): Promise<{
     "--disable-blink-features=AutomationControlled",
     "--disable-dev-shm-usage",
   ];
+
+  // Prefer storageState (portable JSON) over persistent profile
+  if (STORAGE_STATE_PATH) {
+    const resolved = path.resolve(process.cwd(), STORAGE_STATE_PATH);
+    const fs = await import("fs");
+    if (fs.existsSync(resolved)) {
+      console.log("[adspy] Using Facebook storageState");
+      const browser = await chromium.launch({
+        headless: HEADLESS,
+        args: stealthArgs,
+      });
+      const context = await browser.newContext({
+        storageState: resolved,
+        viewport: { width: 1280, height: 900 },
+      });
+      return {
+        context,
+        close: () => browser.close(),
+      };
+    }
+    console.warn("[adspy] storageState file not found:", resolved);
+  }
 
   if (PROFILE_PATH) {
     console.log("[adspy] Using persistent Facebook profile");
@@ -117,14 +141,29 @@ async function createContext(): Promise<{
   };
 }
 
-/** When using persistent profile, verify session is loaded before scraping. */
+/** When using persistent profile or storageState, verify session is loaded before scraping. */
 async function verifyLoginStatus(page: Page): Promise<void> {
-  if (!PROFILE_PATH) return;
+  if (!PROFILE_PATH && !STORAGE_STATE_PATH) return;
   await page.goto("https://www.facebook.com", {
     waitUntil: "domcontentloaded",
     timeout: 45000,
   });
   await delay(2000);
+
+  // EXPERIMENT 1 — Are cookies valid on Fly?
+  const cookies = await page.context().cookies();
+  console.log("[adspy] Total cookies:", cookies.length);
+  const fbCookies = cookies.filter((c) => c.domain.includes("facebook"));
+  console.log("[adspy] FB cookies:", fbCookies.length);
+  if (fbCookies.length > 0) {
+    console.log("[adspy] Sample FB cookies:", fbCookies.slice(0, 5).map((c) => ({ name: c.name, domain: c.domain })));
+  }
+
+  // EXPERIMENT 2 — What does Facebook actually return?
+  const html = await page.content();
+  const isLoginPage = html.includes("login") || html.includes("Log in");
+  console.log("[adspy] Facebook page:", isLoginPage ? "LOGIN PAGE" : "NOT LOGIN PAGE");
+
   let count = await page.locator('[aria-label="Your profile"]').count();
 
   // Setup mode (headless=false) and not logged in: wait for user to log in manually

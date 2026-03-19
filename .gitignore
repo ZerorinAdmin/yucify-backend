@@ -29,6 +29,7 @@ yarn-error.log*
 
 # AdSpy persistent browser profile (contains cookies/session)
 facebook-profile/
+facebook-state.json
 .browser-profile/
 
 # OS

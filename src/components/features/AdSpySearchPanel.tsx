@@ -259,11 +259,11 @@ function PlatformIcon({ platform, className = "h-5 w-5" }: { platform: string; c
 type PageSuggestion = { page_id: string; page_name: string; page_icon?: string; verified_status?: boolean };
 
 const SCRAPE_LOADING_LINES = [
-  "Dusting the Meta archives for fresh clues...",
-  "Following suspicious breadcrumbs through the ad library...",
-  "Interrogating carousels, videos, and rogue CTAs...",
-  "Magnifying the pixels. Nothing escapes the evidence board.",
-  "Checking which ads have been quietly printing for weeks...",
+  "Searching the Meta Ad Library...",
+  "Scanning ads and creatives...",
+  "Matching creatives to ad IDs. This may take a few minutes...",
+  "Almost there...",
+  "Finalizing results...",
   "Doing detective work so your users can look uncannily informed.",
 ];
 
@@ -1151,7 +1151,7 @@ export function AdSpySearchPanel() {
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-[220px] rounded-xl">
-                          A confidence signal that helps surface the advertiser&apos;s strongest long-running ads.
+                          A confidence signal that helps surface the advertiser&apos;s winning ads. Higher the score, better is the chance of the ad being a winner.
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -1323,6 +1323,7 @@ export function AdSpySearchPanel() {
     setSearchResults([]);
     setSelectedPage(null);
     setAds([]);
+    setHasLoadedAds(false);
     try {
       const params = new URLSearchParams({ q: query, country });
       const res = await fetch(`/api/adspy/search-pages?${params}`);
@@ -1550,40 +1551,26 @@ export function AdSpySearchPanel() {
         </div>
       )}
 
-      {!isBoardsView && ads.length > 0 && (
+      {!isBoardsView && hasLoadedAds && ads.length > 0 && (
         <div className="space-y-4">
-          {/* Search bar at top of results */}
-          <div className="flex rounded-xl border border-input bg-background overflow-hidden shadow-sm w-full">
-            <Input
-              id="search-terms-results"
-              placeholder="Type page name (e.g. Nike)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearchPages()}
-              className="flex-1 border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-11 px-4"
-            />
-            <div className="border-l border-input flex items-center">
-              <CountrySelect
-                value={country}
-                onChange={setCountry}
-                triggerClassName="w-[160px] h-11 rounded-none bg-transparent border-0"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 rounded-none shrink-0"
-                onClick={handleSearchPages}
-                disabled={loadingPages}
-              >
-                {loadingPages ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
+          {/* Back button - return to main ad search page */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gap-2 -ml-2 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setSearchResults([]);
+              setSelectedPage(null);
+              setAds([]);
+              setHasLoadedAds(false);
+              setLoadingPages(false);
+              setError(null);
+            }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back to search
+          </Button>
 
           {/* Advertiser selection (from Meta Ads Library search) */}
           {searchResults.length > 0 && (
@@ -1639,44 +1626,7 @@ export function AdSpySearchPanel() {
             </div>
           )}
 
-          {/* Recent below search bar */}
-          {recentPages.length > 0 && !searchResults.length && (
-            <div className="mt-4 flex flex-col gap-3">
-              <span className="text-sm font-semibold text-foreground">Recent</span>
-              <div className="flex flex-wrap gap-6">
-                {recentPages.slice(0, 5).map((p) => (
-                  <button
-                    key={p.page_id}
-                    type="button"
-                    onClick={() => void handleLoadAds(p)}
-                    disabled={loadingAds}
-                    className="flex flex-col items-center gap-1 disabled:opacity-50"
-                  >
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage
-                        src={
-                          (getLogoDisplayUrl(p.page_icon ?? getPageProfilePictureUrl(p.page_id) ?? "") ??
-                            p.page_icon ??
-                            getPageProfilePictureUrl(p.page_id)) ||
-                          undefined
-                        }
-                        alt=""
-                        referrerPolicy="no-referrer"
-                      />
-                      <AvatarFallback className="text-xs">
-                        {p.page_name?.charAt(0) ?? "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-foreground max-w-[72px] truncate">
-                      {p.page_name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Brand heading below Recent, above ads count */}
+          {/* Brand heading above ads count */}
           {currentBrandName && (
             <div className="mt-6 flex items-center gap-3">
               <Avatar className="h-11 w-11 border border-border/60 shadow-sm">
@@ -1700,7 +1650,7 @@ export function AdSpySearchPanel() {
               {ads.length >= 50 ? "50+ ads found" : `${ads.length} ad${ads.length !== 1 ? "s" : ""} found`}
               {source && (
                 <span className="ml-2 font-normal">
-                  ({source === "cache" ? "from cache" : "freshly scraped"})
+                  ({source === "cache" ? "updated" : "new updates"})
                 </span>
               )}
             </h3>
@@ -3396,7 +3346,23 @@ export function AdSpySearchPanel() {
         </>
       )}
 
-      {!isBoardsView && hasLoadedAds && ads.length === 0 && (
+      {/* Loading state when fetching ads (shown in results view too) */}
+      {(loadingAds || loadingSelectedId !== null) && selectedPage && hasLoadedAds && (
+        <Card className="rounded-2xl border-sky-200/70 bg-[radial-gradient(circle_at_top_left,rgba(186,230,253,0.3),transparent_40%)] dark:border-sky-900/40 dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_40%)]">
+          <CardContent className="py-8">
+            <div className="flex items-center gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-sky-500 shrink-0" />
+              <div>
+                <p className="font-medium text-foreground">Searching the page... This may take a minute.</p>
+                <p className="text-sm text-amber-600 dark:text-amber-400 font-medium mt-0.5">Please stay on this page.</p>
+                <p className="text-xs text-muted-foreground mt-1">{SCRAPE_LOADING_LINES[loadingLineIndex]}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isBoardsView && hasLoadedAds && ads.length === 0 && !loadingAds && loadingSelectedId === null && searchResults.length === 0 && (
         <Card className="rounded-2xl border-border/70">
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">No ads found for this page.</p>
@@ -3425,7 +3391,7 @@ export function AdSpySearchPanel() {
         </Card>
       )}
 
-      {/* Search page (hero) - shown before first load */}
+      {/* Search page (hero) - shown for entire search flow until ads are loaded */}
       {!isBoardsView && !hasLoadedAds && (
         <>
           {/* Spacer - positions search section slightly towards center */}
@@ -3475,6 +3441,13 @@ export function AdSpySearchPanel() {
                   </Button>
                 </div>
               </div>
+
+              {loadingPages && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                  <span>Searching for advertisers... Please stay on this page.</span>
+                </div>
+              )}
 
               {/* Advertiser selection: [logo] page_name, page_id, verified - user selects before loading ads */}
               {searchResults.length > 0 && (
@@ -3546,7 +3519,7 @@ export function AdSpySearchPanel() {
 
               {(loadingAds || loadingSelectedId !== null) && selectedPage && (
                 <div className="mt-6 w-full max-w-2xl text-left">
-                  <div className="overflow-hidden rounded-[28px] border border-sky-200/70 bg-[radial-gradient(circle_at_top_left,rgba(186,230,253,0.4),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-5 shadow-[0_18px_55px_rgba(14,116,144,0.12)] dark:border-sky-900/40 dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_35%),linear-gradient(180deg,rgba(10,14,23,0.96),rgba(10,14,23,0.92))]">
+                  <div className="overflow-hidden rounded-[28px] border border-sky-200/70 bg-[radial-gradient(circle_at_top_left,rgba(186,230,253,0.4),transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-6 shadow-[0_18px_55px_rgba(14,116,144,0.12)] dark:border-sky-900/40 dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_35%),linear-gradient(180deg,rgba(10,14,23,0.96),rgba(10,14,23,0.92))]">
                     <div className="flex items-start gap-4">
                       <Avatar className="h-14 w-14 shrink-0 border border-border/60 shadow-sm">
                         <AvatarImage
@@ -3560,26 +3533,25 @@ export function AdSpySearchPanel() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-base font-semibold text-foreground">
-                            Detective mode: {selectedPage.page_name}
+                            Searching: {selectedPage.page_name}
                           </span>
-                          {/* <span className="rounded-full border border-sky-200/80 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300">
-                            Investigating
-                          </span> */}
                         </div>
-                        <p className="mt-2 text-sm text-muted-foreground">
+                        <p className="mt-2 text-sm font-medium text-foreground">
+                          Searching the page... This may take a minute.
+                        </p>
+                        <p className="mt-1 text-sm text-amber-600 dark:text-amber-400 font-medium">
+                          Please stay on this page.
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground">
                           {SCRAPE_LOADING_LINES[loadingLineIndex]}
                         </p>
                         <div className="mt-4 h-2 overflow-hidden rounded-full bg-sky-100/80 dark:bg-sky-950/30">
                           <div className="h-full w-1/3 animate-[pulse_1.8s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400" />
                         </div>
                         <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          {/* <span className="inline-flex items-center gap-1.5">
-                            <Search className="h-3.5 w-3.5 text-sky-500" />
-                            Scanning the ad archive
-                          </span> */}
                           <span className="inline-flex items-center gap-1.5">
                             <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
-                            Matching creatives to the right ad IDs
+                            {SCRAPE_LOADING_LINES[loadingLineIndex]}
                           </span>
                         </div>
                       </div>

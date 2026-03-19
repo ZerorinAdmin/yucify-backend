@@ -34,6 +34,28 @@ fly deploy
 
 The scraper needs a logged-in Facebook session to fetch ads. A Fly volume persists the session across deploys.
 
+**Preferred: storageState (portable)**
+
+```bash
+cd backend
+node login.js
+```
+
+1. Browser opens. Log in to Facebook (email + password + OTP).
+2. Press **Resume** in Playwright when done.
+3. Wait ~40 seconds. Check output for `c_user cookie found`.
+4. Verify `facebook-state.json` exists and contains `"c_user"`.
+
+Upload to Fly:
+
+```bash
+fly machine start <MACHINE_ID> -a yucify-backend
+cat facebook-state.json | fly ssh console -a yucify-backend -C "sh -c 'cd /data && cat > facebook-state.json'"
+fly apps restart yucify-backend
+```
+
+**Alternative: Persistent profile (Mac→Linux may have format issues)**
+
 **Step 1: Create the profile locally**
 
 ```bash
