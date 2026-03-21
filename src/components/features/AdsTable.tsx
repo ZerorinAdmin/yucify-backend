@@ -252,9 +252,9 @@ export function AdsTable({
   return (
     <TooltipProvider>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[18px] font-extrabold text-foreground">Ad Performance</h2>
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-[16px] font-extrabold text-foreground sm:text-[18px]">Ad Performance</h2>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <p className="text-[12px] text-muted-foreground">
               {ads.length} ad{ads.length !== 1 ? "s" : ""} &middot; {totalCols} columns
             </p>
@@ -310,7 +310,7 @@ export function AdsTable({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-border/70">
-                <TableHead className="w-[240px] sticky left-0 bg-white z-10 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground h-12">Ad</TableHead>
+                <TableHead className="sticky left-0 z-10 h-12 w-[min(200px,42vw)] min-w-[min(200px,42vw)] max-w-[min(200px,42vw)] bg-white text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground sm:w-[240px] sm:min-w-[240px] sm:max-w-none">Ad</TableHead>
                 {visibleCols.has("health") && <ColHeader label="Health" tip={CORE_COLUMN_TIPS.health} />}
                 {visibleCols.has("launch") && <ColHeader label="Launch" tip={CORE_COLUMN_TIPS.launch} />}
                 {visibleCols.has("spend") && <ColHeader label="Spend" tip={CORE_COLUMN_TIPS.spend} align="right" />}
@@ -336,7 +336,7 @@ export function AdsTable({
 
                 return (
                   <TableRow key={ad.ad_id} onClick={() => onAdClick?.(ad)} className={`group hover:bg-muted/30 transition-colors cursor-pointer ${isLast ? "border-0" : "border-b border-border/50"}`}>
-                    <TableCell className="sticky left-0 bg-white z-10 group-hover:bg-muted/30 transition-colors py-4">
+                    <TableCell className="sticky left-0 z-10 w-[min(200px,42vw)] min-w-[min(200px,42vw)] max-w-[min(200px,42vw)] bg-white py-4 transition-colors group-hover:bg-muted/30 sm:w-[240px] sm:min-w-[240px] sm:max-w-none">
                       <div className="flex items-center gap-3">
                         <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted/50">
                           {imgSrc ? (

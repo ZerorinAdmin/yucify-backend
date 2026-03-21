@@ -180,15 +180,15 @@ function CarouselViewer({ images }: { images: string[] }) {
       <img src={images[idx]} alt={`Slide ${idx + 1}`} className="h-full w-full object-contain transition-opacity duration-300" />
       {total > 1 && (
         <>
-          <button onClick={prev} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/60">
+          <button type="button" onClick={prev} className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white opacity-100 transition-opacity hover:bg-black/60 sm:opacity-0 sm:group-hover/carousel:opacity-100">
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <button onClick={next} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity hover:bg-black/60">
+          <button type="button" onClick={next} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white opacity-100 transition-opacity hover:bg-black/60 sm:opacity-0 sm:group-hover/carousel:opacity-100">
             <ChevronRight className="h-5 w-5" />
           </button>
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
             {images.map((_, i) => (
-              <button key={i} onClick={() => setIdx(i)} className={`h-2 rounded-full transition-all ${i === idx ? "w-5 bg-white" : "w-2 bg-white/50"}`} />
+              <button type="button" key={i} onClick={() => setIdx(i)} className={`h-2 rounded-full transition-all ${i === idx ? "w-5 bg-white" : "w-2 bg-white/50"}`} />
             ))}
           </div>
         </>
@@ -258,7 +258,7 @@ export function AdDetailPanel({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[92vw] w-[1320px] h-[88vh] p-0 gap-0 overflow-hidden rounded-2xl border-border/40">
+      <DialogContent className="left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden overflow-x-hidden rounded-none border-0 p-0 sm:left-[50%] sm:top-[50%] sm:h-[88vh] sm:max-h-[88vh] sm:w-[min(1320px,92vw)] sm:max-w-[92vw] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border sm:border-border/40">
 
         {/* Accessible header */}
         <DialogHeader className="sr-only">
@@ -266,20 +266,20 @@ export function AdDetailPanel({
           <DialogDescription>{ad.campaign_name}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex h-full overflow-hidden">
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] lg:flex-row lg:overflow-hidden">
 
-          {/* ── Left: Creative (scrollable) ── */}
-          <div className="w-[440px] shrink-0 border-r border-border/40 overflow-y-auto bg-white">
-            <div className="p-6 space-y-5">
+          {/* ── Left: Creative (scrolls with page on mobile; own scroll on lg) ── */}
+          <div className="w-full min-w-0 shrink-0 overflow-x-hidden border-b border-border/40 bg-white lg:w-[440px] lg:max-w-[440px] lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+            <div className="space-y-5 p-4 pr-12 sm:p-6 sm:pr-14">
 
               {/* Ad info */}
-              <div>
-                <h2 className="text-[18px] font-bold text-foreground leading-snug">{ad.ad_name}</h2>
-                <p className="text-[13px] text-muted-foreground mt-1">
+              <div className="min-w-0">
+                <h2 className="break-words text-[18px] font-bold leading-snug text-foreground">{ad.ad_name}</h2>
+                <p className="mt-1 break-words text-[13px] text-muted-foreground">
                   {ad.campaign_name}
                   {ad.adset_name && ad.adset_name !== ad.campaign_name ? ` · ${ad.adset_name}` : ""}
                 </p>
-                <div className="flex items-center gap-3 mt-3">
+                <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
                   <Badge className={`text-[11px] font-semibold uppercase tracking-wider border-0 ${
                     isVideo ? "bg-amber-100 text-amber-700" :
                     isCarousel ? "bg-indigo-100 text-indigo-700" :
@@ -288,24 +288,26 @@ export function AdDetailPanel({
                     {isVideo && <Play className="h-3.5 w-3.5 mr-1" />}
                     {ad.creative_type}
                   </Badge>
-                  <span className="text-[13px] text-muted-foreground flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    {ad.days_count} days · since {ad.first_date && formatDate(ad.first_date)}
+                  <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+                    <span className="break-words">
+                      {ad.days_count} days · since {ad.first_date && formatDate(ad.first_date)}
+                    </span>
                   </span>
                 </div>
               </div>
 
               {/* Media */}
-              <div className="relative rounded-xl overflow-hidden bg-muted/20">
+              <div className="relative max-w-full overflow-hidden rounded-xl bg-muted/20">
                 {isVideo && ad.video_url ? (
-                  <video ref={videoRef} src={ad.video_url} poster={imgSrc} controls playsInline className="w-full object-contain bg-black rounded-xl" />
+                  <video ref={videoRef} src={ad.video_url} poster={imgSrc} controls playsInline className="max-h-[min(56dvh,520px)] w-full rounded-xl bg-black object-contain sm:max-h-none" />
                 ) : isCarousel && ad.carousel_urls?.length > 1 ? (
-                  <div className="aspect-[4/5]">
+                  <div className="aspect-[4/5] max-w-full">
                     <CarouselViewer images={ad.carousel_urls} />
                   </div>
                 ) : imgSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imgSrc} alt={ad.ad_name} className="w-full rounded-xl" />
+                  <img src={imgSrc} alt={ad.ad_name} className="max-h-[min(56dvh,520px)] w-full rounded-xl object-contain sm:max-h-none" />
                 ) : (
                   <div className="flex aspect-square items-center justify-center text-muted-foreground/30">
                     <ImageIcon className="h-16 w-16" strokeWidth={0.8} />
@@ -315,21 +317,21 @@ export function AdDetailPanel({
 
               {/* Ad copy directly below the image */}
               {ad.body && (
-                <p className="text-[14px] text-foreground/80 leading-relaxed">{ad.body}</p>
+                <p className="break-words text-[14px] leading-relaxed text-foreground/80">{ad.body}</p>
               )}
             </div>
           </div>
 
-          {/* ── Right: Data ── */}
-          <div className="flex-1 min-w-0 flex flex-col bg-white">
+          {/* ── Right: Data (single scroll on mobile via parent; pane scroll on lg) ── */}
+          <div className="flex min-w-0 shrink-0 flex-col overflow-x-hidden bg-white lg:min-h-0 lg:shrink lg:flex-1">
 
             {/* Tabs */}
-            <div className="flex px-6 border-b border-border/40 shrink-0">
+            <div className="flex shrink-0 overflow-x-auto border-b border-border/40 px-3 sm:px-6">
               {(["overview", "performance"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`px-5 py-3.5 text-[15px] font-semibold border-b-2 transition-colors capitalize ${
+                  className={`shrink-0 px-4 py-3 text-[14px] font-semibold capitalize transition-colors border-b-2 sm:px-5 sm:py-3.5 sm:text-[15px] ${
                     tab === t
                       ? "border-foreground text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground"
@@ -340,22 +342,22 @@ export function AdDetailPanel({
               ))}
             </div>
 
-            {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Scrollable content (lg only; mobile scrolls the outer flex wrapper) */}
+            <div className="space-y-6 p-4 sm:p-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-y-contain">
               {tab === "overview" && (
                 <>
                   {/* Stat grid */}
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
                     {STAT_ITEMS.map((s) => {
                       const Icon = s.icon;
                       const value = ad[s.key];
                       return (
-                        <div key={s.key} className={`rounded-xl ${s.bg} p-4`}>
+                        <div key={s.key} className={`rounded-xl ${s.bg} p-3 sm:p-4`}>
                           <div className="flex items-center gap-2 mb-2">
                             <Icon className={`h-4 w-4 ${s.iconColor}`} strokeWidth={1.8} />
                             <span className="text-[12px] font-semibold text-foreground/45 uppercase tracking-wide">{s.label}</span>
                           </div>
-                          <p className="text-[22px] font-extrabold tabular-nums text-foreground leading-tight">{s.format(value)}</p>
+                          <p className="text-[18px] font-extrabold tabular-nums leading-tight text-foreground sm:text-[22px]">{s.format(value)}</p>
                         </div>
                       );
                     })}
@@ -644,7 +646,7 @@ export function AdDetailPanel({
                           </div>
                         </div>
                         <TooltipProvider>
-                          <div className="grid grid-cols-4 gap-6 mb-5">
+                          <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
                             {videoStats.map((stat) => (
                               <div key={stat.label}>
                                 <div className="flex items-center gap-1.5">

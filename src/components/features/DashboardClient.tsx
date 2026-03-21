@@ -31,7 +31,7 @@ function formatDateDisplay(dateStr: string): string {
 
 function EmptyDateRangeState({ dateFrom, dateTo }: { dateFrom: string; dateTo: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-white py-20 px-8">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-white px-4 py-12 sm:px-8 sm:py-20">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
         <CalendarRange className="h-8 w-8 text-muted-foreground" strokeWidth={1.5} />
       </div>

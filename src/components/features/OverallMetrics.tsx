@@ -118,7 +118,7 @@ function WeeklyChangePlaceholder({ hero }: { hero?: boolean }) {
 function StatCard({ label, value, subtext, icon, accent, hero, weeklyChange }: StatCardProps) {
   const valueRow = (
     <div className="flex items-baseline gap-2 min-w-0 flex-wrap">
-      <p className={`font-bold leading-none tracking-tight ${hero ? "text-[28px] text-white" : `text-[24px] ${accent ?? "text-foreground"}`}`}>
+      <p className={`font-bold leading-none tracking-tight ${hero ? "text-[22px] text-white sm:text-[28px]" : `text-[20px] sm:text-[24px] ${accent ?? "text-foreground"}`}`}>
         {value}
       </p>
       {weeklyChange === "no_data" && <WeeklyChangePlaceholder hero={hero} />}
@@ -292,7 +292,7 @@ export function OverallMetrics({ ads }: { ads: AdSummary[] }) {
 
   return (
     <TooltipProvider>
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 min-w-0 [&>*]:min-w-[180px]">
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         <StatCard
           hero
           label="Total Spend"

@@ -44,14 +44,18 @@ export default async function CreativesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Top Creatives</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Top Creatives</h1>
           <p className="text-sm text-muted-foreground">
             All creative assets from your ad account
           </p>
         </div>
-        {connected && <SyncMetricsButton />}
+        {connected && (
+          <div className="shrink-0 self-stretch sm:self-auto">
+            <SyncMetricsButton />
+          </div>
+        )}
       </div>
 
       {connected ? (

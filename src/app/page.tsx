@@ -14,7 +14,7 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-white">
+    <main className="flex min-h-[100dvh] flex-col items-center justify-center bg-white p-6 sm:p-8">
       <div className="w-full max-w-sm flex flex-col items-center text-center">
         <Image
           src="/yucify-logo.png"

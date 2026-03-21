@@ -86,7 +86,13 @@ async function getSavedAnalysesCount(): Promise<number> {
   }
 }
 
-export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
+export function SidebarContent({
+  accounts = [],
+  onNavigate,
+}: {
+  accounts?: Account[];
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [savedBoardsCount, setSavedBoardsCount] = useState(0);
@@ -128,9 +134,9 @@ export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
   }, []);
 
   return (
-    <aside className="flex h-full w-[240px] shrink-0 flex-col border-r border-border/70 bg-white">
+    <div className="flex h-full min-h-0 w-full flex-col bg-white">
       {/* Logo */}
-      <div className="flex h-[60px] items-center px-6">
+      <div className="flex h-[60px] shrink-0 items-center px-6 pr-12">
         <Image
           src="/yucify-logo.png"
           alt="Yucify"
@@ -142,13 +148,13 @@ export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
 
       {/* Account switcher */}
       {accounts.length > 0 && (
-        <div className="border-b border-border/70">
+        <div className="shrink-0 border-b border-border/70">
           <AccountSwitcher accounts={accounts} />
         </div>
       )}
 
       {/* Nav */}
-      <nav className="flex-1 overflow-auto px-3 pt-4 pb-4">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-4">
         <p className="px-3 mb-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           Menu
         </p>
@@ -165,6 +171,7 @@ export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
               <Link
                 key={item.href}
                 href={href}
+                onClick={() => onNavigate?.()}
                 className={cn(
                   "group relative flex items-center justify-between rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors",
                   active
@@ -200,6 +207,7 @@ export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
                 <Link
                   key={r.label}
                   href={hrefWithDateParams(r.href, searchParams)}
+                  onClick={() => onNavigate?.()}
                   className={cn(
                     "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors",
                     reportActive
@@ -225,7 +233,7 @@ export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border/70 px-3 py-3">
+      <div className="shrink-0 border-t border-border/70 px-3 py-3">
         <form action="/api/auth/signout" method="post">
           <button
             type="submit"
@@ -236,6 +244,14 @@ export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
           </button>
         </form>
       </div>
+    </div>
+  );
+}
+
+export function Sidebar({ accounts = [] }: { accounts?: Account[] }) {
+  return (
+    <aside className="hidden h-full w-[240px] shrink-0 flex-col border-r border-border/70 bg-white lg:flex lg:flex-col">
+      <SidebarContent accounts={accounts} />
     </aside>
   );
 }

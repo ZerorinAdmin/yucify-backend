@@ -10,6 +10,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ArrowDown, TrendingDown, Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type FunnelStage = {
   name: string;
@@ -68,7 +75,7 @@ export function AdFunnel() {
       .then((d) => {
         if (!d.error) {
           setData(d);
-          if (d.ads && d.ads.length > 0 && ads.length === 0) {
+          if (Array.isArray(d.ads)) {
             setAds(d.ads);
           }
         }
@@ -102,36 +109,41 @@ export function AdFunnel() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[20px] font-extrabold text-foreground">Ad Funnel</h2>
-          <p className="text-[13px] text-muted-foreground mt-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h2 className="text-[18px] font-extrabold text-foreground sm:text-[20px]">Ad Funnel</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
             Detected funnel: <span className="font-semibold text-foreground">{data.funnelLabel}</span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedAd}
-            onChange={(e) => setSelectedAd(e.target.value)}
-            className="rounded-xl border border-border/60 bg-white px-4 py-2.5 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="all">All Ads</option>
-            {ads.map((ad) => (
-              <option key={ad.id} value={ad.id}>{ad.name}</option>
-            ))}
-          </select>
+        <div className="w-full shrink-0 sm:w-[min(100%,280px)]">
+          <Select value={selectedAd} onValueChange={setSelectedAd}>
+            <SelectTrigger className="h-10 w-full rounded-xl border-border/60 bg-white text-[13px] font-medium">
+              <SelectValue placeholder="All Ads" />
+            </SelectTrigger>
+            <SelectContent align="end" className="rounded-xl">
+              <SelectItem value="all" className="text-[13px]">
+                All Ads
+              </SelectItem>
+              {ads.map((ad) => (
+                <SelectItem key={ad.id} value={ad.id} className="text-[13px]">
+                  <span className="line-clamp-2 text-left break-words">{ad.name}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr,1fr] gap-8">
-        {/* Recharts Funnel */}
-        <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-white to-muted/20 p-6 shadow-sm">
-          <h3 className="text-[15px] font-bold text-foreground mb-4">Funnel Chart</h3>
-          <div className="h-[420px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        {/* Chart first: top on mobile, left column on desktop */}
+        <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-white to-muted/20 p-4 shadow-sm sm:p-6">
+          <h3 className="mb-3 text-[15px] font-bold text-foreground sm:mb-4">Funnel Chart</h3>
+          <div className="h-[300px] sm:h-[380px] lg:h-[440px]">
             <ResponsiveContainer width="100%" height="100%">
-              <FunnelChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+              <FunnelChart margin={{ top: 12, right: 8, bottom: 12, left: 8 }}>
                 <defs>
                   {stagesWithLabel.map((_, i) => (
                     <linearGradient key={i} id={`funnel-grad-${i}`} x1="0" y1="0" x2="1" y2="1">
@@ -174,11 +186,20 @@ export function AdFunnel() {
           </div>
         </div>
 
-        {/* Stage breakdown cards */}
-        <div className="space-y-3">
-          <h3 className="text-[15px] font-bold text-foreground mb-1">Stage Breakdown</h3>
+        {/* Breakdown second: below chart on mobile, right column on desktop */}
+        <div className="space-y-2 sm:space-y-3">
+          <h3 className="mb-1 text-[15px] font-bold text-foreground">Stage Breakdown</h3>
           {data.stages.map((stage, i) => {
-            const widthPct = maxValue > 0 ? (stage.value / maxValue) * 100 : 0;
+            const linearPct = maxValue > 0 ? (stage.value / maxValue) * 100 : 0;
+            // Sqrt scaling keeps order vs top stage but avoids hairline bars for small shares
+            const visualBarPct =
+              maxValue > 0 && stage.value > 0
+                ? Math.sqrt(stage.value / maxValue) * 100
+                : 0;
+            const barWidthPct =
+              stage.value <= 0
+                ? 0
+                : Math.min(100, Math.max(visualBarPct, linearPct < 1 ? 8 : 3));
             const dropOff = i > 0 ? data.stages[i - 1].value - stage.value : 0;
             const dropPct = i > 0 && data.stages[i - 1].value > 0
               ? ((dropOff / data.stages[i - 1].value) * 100).toFixed(1)
@@ -189,8 +210,8 @@ export function AdFunnel() {
             return (
               <div key={stage.name}>
                 {i > 0 && (
-                  <div className="flex items-center gap-2 py-1.5 pl-4">
-                    <ArrowDown className="h-3.5 w-3.5 text-muted-foreground/40" />
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1 pl-2 sm:pl-4">
+                    <ArrowDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
                     {isConversionOver100 ? (
                       <span className="text-[12px] text-amber-600" title="Meta counts Clicks and Link Clicks differently; Link Clicks can exceed Clicks">
                         Different definitions
@@ -210,24 +231,26 @@ export function AdFunnel() {
                     )}
                   </div>
                 )}
-                <div className="rounded-xl border border-border/40 bg-white p-4 hover:shadow-md hover:border-border/60 transition-all">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="flex items-center gap-2">
+                <div className="rounded-xl border border-border/40 bg-white p-3 transition-all hover:border-border/60 hover:shadow-md sm:p-4">
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
                       <span
-                        className="h-2.5 w-2.5 rounded-sm shrink-0"
+                        className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm"
                         style={{ backgroundColor: color }}
                       />
-                      <span className="text-[13px] font-semibold text-foreground">{stage.name}</span>
+                      <span className="text-[13px] font-semibold leading-snug text-foreground">
+                        {stage.name}
+                      </span>
                     </span>
-                    <span className="text-[15px] font-extrabold tabular-nums text-foreground">
+                    <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-foreground sm:text-[15px]">
                       {formatCompact(stage.value)}
                     </span>
                   </div>
-                  <div className="h-2.5 rounded-full bg-muted/50 overflow-hidden">
+                  <div className="h-2.5 overflow-hidden rounded-full bg-muted/50">
                     <div
-                      className="h-full rounded-full transition-all duration-700"
+                      className="h-full min-w-[4px] rounded-full transition-all duration-700"
                       style={{
-                        width: `${Math.max(widthPct, 1)}%`,
+                        width: `${barWidthPct}%`,
                         backgroundColor: color,
                       }}
                     />

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Popover,
@@ -113,52 +115,70 @@ export function SyncMetricsButton() {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
       <Popover
         onOpenChange={(open) => {
           if (!open) updateUrl(dateFrom, dateTo);
         }}
       >
         <PopoverTrigger asChild>
-          <button className="flex items-center gap-2 rounded-xl border border-border/70 bg-white px-3.5 py-2 text-[13px] text-foreground hover:bg-muted/40 transition-colors">
-            <CalendarDays className="h-4 w-4 text-muted-foreground" strokeWidth={1.7} />
-            <span className="font-medium">{formatDisplay(dateFrom)}</span>
-            <span className="text-muted-foreground">—</span>
-            <span className="font-medium">{formatDisplay(dateTo)}</span>
-          </button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 w-full justify-start gap-2 rounded-xl border-border/70 bg-white text-[13px] font-normal text-foreground hover:bg-muted/40 sm:w-auto"
+          >
+            <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.7} />
+            <span className="min-w-0 truncate text-left font-medium">
+              {formatDisplay(dateFrom)}{" "}
+              <span className="text-muted-foreground">—</span>{" "}
+              {formatDisplay(dateTo)}
+            </span>
+          </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-auto p-4 rounded-2xl space-y-4">
+        <PopoverContent
+          align="end"
+          className="w-[min(100vw-2rem,22rem)] space-y-4 rounded-2xl p-4 sm:w-auto"
+        >
           <p className="text-[13px] font-semibold text-foreground">Date Range</p>
-          <div className="flex items-center gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">From</label>
-              <input
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-3">
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Label htmlFor="date-from" className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                From
+              </Label>
+              <Input
+                id="date-from"
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="block w-[150px] rounded-xl border border-border/70 bg-muted/30 px-3 py-2 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-foreground/10"
+                className="w-full rounded-xl border-border/70 bg-muted/30 text-[13px]"
               />
             </div>
-            <span className="text-muted-foreground mt-5">—</span>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">To</label>
-              <input
+            <span className="hidden text-muted-foreground sm:mb-2 sm:inline">—</span>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Label htmlFor="date-to" className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                To
+              </Label>
+              <Input
+                id="date-to"
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="block w-[150px] rounded-xl border border-border/70 bg-muted/30 px-3 py-2 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-foreground/10"
+                className="w-full rounded-xl border-border/70 bg-muted/30 text-[13px]"
               />
             </div>
           </div>
-          <div className="flex gap-2 pt-1">
+          <div className="flex flex-wrap gap-2 pt-1">
             {[
               { label: "7d", days: 7 },
               { label: "30d", days: 30 },
               { label: "90d", days: 90 },
               { label: "6m", days: 180 },
             ].map((p) => (
-              <button
+              <Button
                 key={p.label}
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   const to = new Date();
                   const from = new Date(to.getTime() - p.days * 86400000);
@@ -168,17 +188,17 @@ export function SyncMetricsButton() {
                   setDateTo(toStr);
                   updateUrl(fromStr, toStr);
                 }}
-                className="rounded-lg border border-border/70 px-3 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+                className="h-8 rounded-lg border-border/70 px-3 text-[11px] font-medium text-muted-foreground hover:text-foreground"
               >
                 {p.label}
-              </button>
+              </Button>
             ))}
           </div>
         </PopoverContent>
       </Popover>
 
       <Button
-        className="h-9 rounded-xl gap-2 bg-foreground text-white hover:bg-foreground/90 transition-colors font-medium text-[13px] px-4"
+        className="h-9 w-full gap-2 rounded-xl bg-foreground px-4 text-[13px] font-medium text-white transition-colors hover:bg-foreground/90 sm:w-auto"
         onClick={handleSync}
         disabled={loading}
       >

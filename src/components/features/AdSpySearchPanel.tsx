@@ -2098,18 +2098,25 @@ export function AdSpySearchPanel() {
             open={analyzeOpen}
             onOpenChange={(open) => !open && (setAnalyzeOpen(false), setAnalyzeError(null), setAnalyzeResult(null), setActiveAnalysisPageId(null), setActiveAnalysisPageName(null))}
           >
-            <DialogContent className="max-w-[94vw] w-[1120px] max-h-[92vh] overflow-hidden flex flex-col rounded-[28px] border-border/40 p-0 gap-0">
-              <DialogHeader className="px-7 pr-14 py-5 border-b shrink-0 bg-gradient-to-r from-white via-white to-[hsl(250,60%,98%)]">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-[hsl(250,60%,55%)]" />
-                      AI Competitor Analysis
-                      {(activeAnalysisPageName ?? currentBrandName) && (
-                        <span className="font-normal text-muted-foreground">— {activeAnalysisPageName ?? currentBrandName}</span>
-                      )}
+            <DialogContent className="flex max-h-[92vh] w-[1120px] max-w-[94vw] flex-col gap-0 overflow-hidden rounded-[28px] border-border/40 p-0">
+              <DialogHeader className="shrink-0 space-y-0 border-b bg-gradient-to-r from-white via-white to-[hsl(250,60%,98%)] px-4 pb-4 pt-5 pr-14 text-left sm:px-7 sm:py-5 sm:pr-[5.5rem]">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div className="min-w-0 max-w-full sm:pr-2">
+                    <DialogTitle className="text-left text-lg leading-snug sm:text-xl">
+                      <span className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 shrink-0 text-[hsl(250,60%,55%)]" />
+                          <span className="font-semibold tracking-tight">AI Competitor Analysis</span>
+                        </span>
+                        {(activeAnalysisPageName ?? currentBrandName) && (
+                          <span className="text-base font-normal text-muted-foreground sm:text-xl">
+                            <span className="hidden sm:inline">— </span>
+                            {activeAnalysisPageName ?? currentBrandName}
+                          </span>
+                        )}
+                      </span>
                     </DialogTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="mt-2 text-sm text-muted-foreground">
                       A strategic report on the competitor&apos;s active ads, message patterns, funnel mix, and exploitable gaps.
                     </p>
                   </div>
@@ -2118,7 +2125,7 @@ export function AdSpySearchPanel() {
                       type="button"
                       variant={isCurrentAnalysisSaved() ? "secondary" : "default"}
                       className={cn(
-                        "shrink-0",
+                        "h-10 w-full shrink-0 sm:h-9 sm:w-auto sm:self-start",
                         !isCurrentAnalysisSaved() && "bg-[hsl(250,60%,55%)] hover:bg-[hsl(250,60%,48%)]"
                       )}
                       onClick={() => void handleSaveAnalysis()}
@@ -2242,42 +2249,42 @@ export function AdSpySearchPanel() {
                         subtitle="TOF means broad awareness, MOF means education and persuasion, and BOF means direct conversion pressure."
                       >
                         {analyzeResult.funnel_stage && (
-                          <div className="grid grid-cols-3 gap-3 text-sm">
-                            <div className="rounded-xl border border-border/60 bg-white p-4">
+                          <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3 md:gap-3">
+                            <div className="min-w-0 break-words rounded-xl border border-border/60 bg-white p-4">
                               <p className="font-medium">TOF</p>
                               <p className="text-xs text-muted-foreground">Broad awareness</p>
                               <p className="text-muted-foreground">{analyzeResult.funnel_stage.tof?.count ?? 0} ({analyzeResult.funnel_stage.tof?.pct ?? 0}%)</p>
-                              <p className="text-xs mt-1">{analyzeResult.funnel_stage.tof?.summary}</p>
+                              <p className="mt-1 text-xs leading-relaxed">{analyzeResult.funnel_stage.tof?.summary}</p>
                               {Boolean(analyzeResult.funnel_stage.tof?.examples?.length) && (
-                                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
                                   {analyzeResult.funnel_stage.tof?.examples.slice(0, 2).map((item: string, i: number) => (
-                                    <li key={i}>{item}</li>
+                                    <li key={i} className="break-words">{item}</li>
                                   ))}
                                 </ul>
                               )}
                             </div>
-                            <div className="rounded-xl border border-border/60 bg-white p-4">
+                            <div className="min-w-0 break-words rounded-xl border border-border/60 bg-white p-4">
                               <p className="font-medium">MOF</p>
                               <p className="text-xs text-muted-foreground">Education + persuasion</p>
                               <p className="text-muted-foreground">{analyzeResult.funnel_stage.mof?.count ?? 0} ({analyzeResult.funnel_stage.mof?.pct ?? 0}%)</p>
-                              <p className="text-xs mt-1">{analyzeResult.funnel_stage.mof?.summary}</p>
+                              <p className="mt-1 text-xs leading-relaxed">{analyzeResult.funnel_stage.mof?.summary}</p>
                               {Boolean(analyzeResult.funnel_stage.mof?.examples?.length) && (
-                                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
                                   {analyzeResult.funnel_stage.mof?.examples.slice(0, 2).map((item: string, i: number) => (
-                                    <li key={i}>{item}</li>
+                                    <li key={i} className="break-words">{item}</li>
                                   ))}
                                 </ul>
                               )}
                             </div>
-                            <div className="rounded-xl border border-border/60 bg-white p-4">
+                            <div className="min-w-0 break-words rounded-xl border border-border/60 bg-white p-4">
                               <p className="font-medium">BOF</p>
                               <p className="text-xs text-muted-foreground">Direct conversion</p>
                               <p className="text-muted-foreground">{analyzeResult.funnel_stage.bof?.count ?? 0} ({analyzeResult.funnel_stage.bof?.pct ?? 0}%)</p>
-                              <p className="text-xs mt-1">{analyzeResult.funnel_stage.bof?.summary}</p>
+                              <p className="mt-1 text-xs leading-relaxed">{analyzeResult.funnel_stage.bof?.summary}</p>
                               {Boolean(analyzeResult.funnel_stage.bof?.examples?.length) && (
-                                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
                                   {analyzeResult.funnel_stage.bof?.examples.slice(0, 2).map((item: string, i: number) => (
-                                    <li key={i}>{item}</li>
+                                    <li key={i} className="break-words">{item}</li>
                                   ))}
                                 </ul>
                               )}
@@ -2866,18 +2873,25 @@ export function AdSpySearchPanel() {
             open={analyzeOpen}
             onOpenChange={(open) => !open && (setAnalyzeOpen(false), setAnalyzeError(null), setAnalyzeResult(null), setActiveAnalysisPageId(null), setActiveAnalysisPageName(null))}
           >
-            <DialogContent className="max-w-[94vw] w-[1120px] max-h-[92vh] overflow-hidden flex flex-col rounded-[28px] border-border/40 p-0 gap-0">
-              <DialogHeader className="px-7 pr-14 py-5 border-b shrink-0 bg-gradient-to-r from-white via-white to-[hsl(250,60%,98%)]">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-[hsl(250,60%,55%)]" />
-                      AI Competitor Analysis
-                      {(activeAnalysisPageName ?? currentBrandName) && (
-                        <span className="font-normal text-muted-foreground">— {activeAnalysisPageName ?? currentBrandName}</span>
-                      )}
+            <DialogContent className="flex max-h-[92vh] w-[1120px] max-w-[94vw] flex-col gap-0 overflow-hidden rounded-[28px] border-border/40 p-0">
+              <DialogHeader className="shrink-0 space-y-0 border-b bg-gradient-to-r from-white via-white to-[hsl(250,60%,98%)] px-4 pb-4 pt-5 pr-14 text-left sm:px-7 sm:py-5 sm:pr-[5.5rem]">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div className="min-w-0 max-w-full sm:pr-2">
+                    <DialogTitle className="text-left text-lg leading-snug sm:text-xl">
+                      <span className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 shrink-0 text-[hsl(250,60%,55%)]" />
+                          <span className="font-semibold tracking-tight">AI Competitor Analysis</span>
+                        </span>
+                        {(activeAnalysisPageName ?? currentBrandName) && (
+                          <span className="text-base font-normal text-muted-foreground sm:text-xl">
+                            <span className="hidden sm:inline">— </span>
+                            {activeAnalysisPageName ?? currentBrandName}
+                          </span>
+                        )}
+                      </span>
                     </DialogTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="mt-2 text-sm text-muted-foreground">
                       A strategic report on the competitor&apos;s active ads, message patterns, funnel mix, and exploitable gaps.
                     </p>
                   </div>
@@ -2886,7 +2900,7 @@ export function AdSpySearchPanel() {
                       type="button"
                       variant={isCurrentAnalysisSaved() ? "secondary" : "default"}
                       className={cn(
-                        "shrink-0",
+                        "h-10 w-full shrink-0 sm:h-9 sm:w-auto sm:self-start",
                         !isCurrentAnalysisSaved() && "bg-[hsl(250,60%,55%)] hover:bg-[hsl(250,60%,48%)]"
                       )}
                       onClick={() => void handleSaveAnalysis()}
@@ -2985,42 +2999,42 @@ export function AdSpySearchPanel() {
                         subtitle="TOF means broad awareness, MOF means education and persuasion, and BOF means direct conversion pressure."
                       >
                         {analyzeResult.funnel_stage && (
-                          <div className="grid grid-cols-3 gap-3 text-sm">
-                            <div className="rounded-xl border border-border/60 bg-white p-4">
+                          <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3 md:gap-3">
+                            <div className="min-w-0 break-words rounded-xl border border-border/60 bg-white p-4">
                               <p className="font-medium">TOF</p>
                               <p className="text-xs text-muted-foreground">Broad awareness</p>
                               <p className="text-muted-foreground">{analyzeResult.funnel_stage.tof?.count ?? 0} ({analyzeResult.funnel_stage.tof?.pct ?? 0}%)</p>
-                              <p className="text-xs mt-1">{analyzeResult.funnel_stage.tof?.summary}</p>
+                              <p className="mt-1 text-xs leading-relaxed">{analyzeResult.funnel_stage.tof?.summary}</p>
                               {Boolean(analyzeResult.funnel_stage.tof?.examples?.length) && (
-                                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
                                   {analyzeResult.funnel_stage.tof?.examples.slice(0, 2).map((item: string, i: number) => (
-                                    <li key={i}>{item}</li>
+                                    <li key={i} className="break-words">{item}</li>
                                   ))}
                                 </ul>
                               )}
                             </div>
-                            <div className="rounded-xl border border-border/60 bg-white p-4">
+                            <div className="min-w-0 break-words rounded-xl border border-border/60 bg-white p-4">
                               <p className="font-medium">MOF</p>
                               <p className="text-xs text-muted-foreground">Education + persuasion</p>
                               <p className="text-muted-foreground">{analyzeResult.funnel_stage.mof?.count ?? 0} ({analyzeResult.funnel_stage.mof?.pct ?? 0}%)</p>
-                              <p className="text-xs mt-1">{analyzeResult.funnel_stage.mof?.summary}</p>
+                              <p className="mt-1 text-xs leading-relaxed">{analyzeResult.funnel_stage.mof?.summary}</p>
                               {Boolean(analyzeResult.funnel_stage.mof?.examples?.length) && (
-                                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
                                   {analyzeResult.funnel_stage.mof?.examples.slice(0, 2).map((item: string, i: number) => (
-                                    <li key={i}>{item}</li>
+                                    <li key={i} className="break-words">{item}</li>
                                   ))}
                                 </ul>
                               )}
                             </div>
-                            <div className="rounded-xl border border-border/60 bg-white p-4">
+                            <div className="min-w-0 break-words rounded-xl border border-border/60 bg-white p-4">
                               <p className="font-medium">BOF</p>
                               <p className="text-xs text-muted-foreground">Direct conversion</p>
                               <p className="text-muted-foreground">{analyzeResult.funnel_stage.bof?.count ?? 0} ({analyzeResult.funnel_stage.bof?.pct ?? 0}%)</p>
-                              <p className="text-xs mt-1">{analyzeResult.funnel_stage.bof?.summary}</p>
+                              <p className="mt-1 text-xs leading-relaxed">{analyzeResult.funnel_stage.bof?.summary}</p>
                               {Boolean(analyzeResult.funnel_stage.bof?.examples?.length) && (
-                                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
                                   {analyzeResult.funnel_stage.bof?.examples.slice(0, 2).map((item: string, i: number) => (
-                                    <li key={i}>{item}</li>
+                                    <li key={i} className="break-words">{item}</li>
                                   ))}
                                 </ul>
                               )}

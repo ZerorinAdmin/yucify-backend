@@ -79,11 +79,11 @@ export default async function DashboardPage({
   const adSummary = aggregateByAd(metrics ?? [], creatives ?? []);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[26px] font-extrabold tracking-tight text-foreground">Dashboard</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-extrabold tracking-tight text-foreground sm:text-[26px]">Dashboard</h1>
           {connected ? (
             <div className="flex items-center gap-2 mt-1">
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -97,7 +97,11 @@ export default async function DashboardPage({
             </p>
           )}
         </div>
-        {connected && <SyncMetricsButton />}
+        {connected && (
+          <div className="shrink-0 self-stretch sm:self-auto">
+            <SyncMetricsButton />
+          </div>
+        )}
       </div>
 
       {metaErrorMessage && (

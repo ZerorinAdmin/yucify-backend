@@ -86,8 +86,8 @@ export function CreativeVisualizer({ ads, onAdClick }: { ads: AdSummary[]; onAdC
   return (
     <div className="space-y-5">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 text-[12px] gap-1.5 rounded-lg border-dashed border-border font-medium">
@@ -140,7 +140,7 @@ export function CreativeVisualizer({ ads, onAdClick }: { ads: AdSummary[]; onAdC
         </div>
 
         {/* View toggle */}
-        <div className="flex items-center rounded-xl border border-border/70 bg-white p-1">
+        <div className="flex w-full items-center justify-between rounded-xl border border-border/70 bg-white p-1 sm:w-auto sm:justify-start">
           <ViewBtn active={view === "card"} onClick={() => setView("card")} icon={<LayoutGrid className="h-3.5 w-3.5" strokeWidth={1.8} />} label="Cards" />
           <ViewBtn active={view === "bar"}  onClick={() => setView("bar")}  icon={<BarChart3 className="h-3.5 w-3.5" strokeWidth={1.8} />}  label="Bar" />
           <ViewBtn active={view === "line"} onClick={() => setView("line")} icon={<TrendingUp className="h-3.5 w-3.5" strokeWidth={1.8} />} label="Line" />
@@ -238,8 +238,8 @@ function BarView({ ads, metrics }: { ads: AdSummary[]; metrics: string[] }) {
   });
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-white p-6">
-      <div className="h-[380px]">
+    <div className="rounded-2xl border border-border/70 bg-white p-4 sm:p-6">
+      <div className="h-[260px] sm:h-[380px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barCategoryGap="25%">
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -299,8 +299,8 @@ function LineView({ ads, metrics }: { ads: AdSummary[]; metrics: string[] }) {
   });
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-white p-6">
-      <div className="h-[380px]">
+    <div className="rounded-2xl border border-border/70 bg-white p-4 sm:p-6">
+      <div className="h-[260px] sm:h-[380px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />

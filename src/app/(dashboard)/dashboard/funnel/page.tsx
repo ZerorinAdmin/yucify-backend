@@ -18,19 +18,23 @@ export default async function FunnelPage() {
   const connected = !!metaAccount?.ad_account_id;
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[26px] font-extrabold tracking-tight text-foreground">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-extrabold tracking-tight text-foreground sm:text-[26px]">
             Funnel
           </h1>
-          <p className="text-[13px] text-muted-foreground mt-1">
+          <p className="mt-1 text-[13px] text-muted-foreground">
             {connected
               ? "Conversion funnel by date range"
               : "Connect your Meta ad account to see funnel data"}
           </p>
         </div>
-        {connected && <SyncMetricsButton />}
+        {connected && (
+          <div className="shrink-0 self-stretch sm:self-auto">
+            <SyncMetricsButton />
+          </div>
+        )}
       </div>
       <AdFunnel />
     </div>
