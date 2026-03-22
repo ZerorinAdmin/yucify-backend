@@ -36,6 +36,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Tooltip,
   TooltipContent,
@@ -99,6 +100,12 @@ function formatVideoTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/** Meta often returns a plugin URL instead of a raw MP4 `source`. */
+function isFacebookVideoEmbedUrl(url: string): boolean {
+  const u = url.toLowerCase();
+  return u.includes("facebook.com/plugins/") || u.includes("connect.facebook.net");
 }
 
 function PlacementIcon({ platform, x, y }: { platform: string; x: number; y: number }) {
@@ -193,6 +200,130 @@ function CarouselViewer({ images }: { images: string[] }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function VideoAnalysisSection({
+  video,
+  chartGradientId,
+}: {
+  video: VideoData;
+  chartGradientId: string;
+}) {
+  const plays = video.plays || 1;
+  const videoStats = [
+    {
+      label: "Video plays",
+      value: formatCompact(video.plays),
+      tooltip: "Total number of videos that started playing",
+    },
+    {
+      label: "Video average play time",
+      value: video.avg_time_seconds != null ? formatVideoTime(video.avg_time_seconds) : "—",
+      tooltip: "Average time viewers watched the video",
+    },
+    {
+      label: "Hook rate",
+      value: video.hook_rate != null ? `${video.hook_rate}%` : "—",
+      tooltip: "3-second video views ÷ impressions. Matches Meta Ads Manager.",
+    },
+    {
+      label: "Hold rate",
+      value: video.hold_rate != null ? `${video.hold_rate}%` : "—",
+      tooltip: "ThruPlays (15s or completion) ÷ 3-second video views. Matches Meta Ads Manager custom metric.",
+    },
+  ];
+  const retentionData = [
+    { time: 0, timeLabel: "00:00", pct: 100 },
+    { time: 25, timeLabel: "00:04", pct: Math.round((video.p25 / plays) * 100) },
+    { time: 50, timeLabel: "00:08", pct: Math.round((video.p50 / plays) * 100) },
+    { time: 75, timeLabel: "00:12", pct: Math.round((video.p75 / plays) * 100) },
+    { time: 100, timeLabel: "00:15", pct: Math.round((video.p100 / plays) * 100) },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-white p-5">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h4 className="text-[15px] font-bold text-foreground">Video analysis</h4>
+        <div className="relative shrink-0">
+          <select
+            className="h-8 cursor-pointer appearance-none rounded-lg border border-border/70 bg-white pl-3 pr-8 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            defaultValue="retention"
+            aria-label="Video analysis view"
+          >
+            <option value="retention">Audience retention</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        </div>
+      </div>
+      <TooltipProvider>
+        <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {videoStats.map((stat) => (
+            <div key={stat.label}>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[12px] text-muted-foreground">{stat.label}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[200px] rounded-lg">
+                    {stat.tooltip}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="mt-0.5 text-[18px] font-bold tabular-nums text-foreground">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+      </TooltipProvider>
+      <div className="h-[200px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={retentionData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+            <defs>
+              <linearGradient id={chartGradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#9f85fd" stopOpacity={0.4} />
+                <stop offset="100%" stopColor="#9f85fd" stopOpacity={0.05} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={true} vertical={false} />
+            <XAxis
+              dataKey="timeLabel"
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              domain={[0, 100]}
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              tickFormatter={(n) => `${n}%`}
+              width={40}
+              axisLine={false}
+              tickLine={false}
+            />
+            <RechartsTooltip
+              contentStyle={{
+                backgroundColor: "#fff",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: 12,
+                fontSize: 13,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+              }}
+              formatter={(value: unknown) => [`${value}%`, "Viewers"]}
+              labelFormatter={(_, payload) => payload?.[0]?.payload?.timeLabel ?? ""}
+            />
+            <Area
+              type="monotone"
+              dataKey="pct"
+              stroke="#9f85fd"
+              strokeWidth={2}
+              fill={`url(#${chartGradientId})`}
+              dot={false}
+              activeDot={{ r: 4, fill: "#9f85fd", strokeWidth: 2, stroke: "#fff" }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
@@ -299,8 +430,23 @@ export function AdDetailPanel({
 
               {/* Media */}
               <div className="relative max-w-full overflow-hidden rounded-xl bg-muted/20">
-                {isVideo && ad.video_url ? (
-                  <video ref={videoRef} src={ad.video_url} poster={imgSrc} controls playsInline className="max-h-[min(56dvh,520px)] w-full rounded-xl bg-black object-contain sm:max-h-none" />
+                {isVideo && ad.video_url && isFacebookVideoEmbedUrl(ad.video_url) ? (
+                  <iframe
+                    title={`Video: ${ad.ad_name}`}
+                    src={ad.video_url}
+                    className="aspect-video min-h-[200px] w-full max-h-[min(56dvh,520px)] rounded-xl border-0 bg-black sm:max-h-none"
+                    allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : isVideo && ad.video_url ? (
+                  <video
+                    ref={videoRef}
+                    src={ad.video_url}
+                    poster={imgSrc}
+                    controls
+                    playsInline
+                    className="max-h-[min(56dvh,520px)] w-full rounded-xl bg-black object-contain sm:max-h-none"
+                  />
                 ) : isCarousel && ad.carousel_urls?.length > 1 ? (
                   <div className="aspect-[4/5] max-w-full">
                     <CarouselViewer images={ad.carousel_urls} />
@@ -314,6 +460,15 @@ export function AdDetailPanel({
                   </div>
                 )}
               </div>
+
+              {isVideo && !ad.video_url && (
+                <Alert className="border-amber-200/80 bg-amber-50/90 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                  <AlertDescription className="text-[13px] leading-snug">
+                    Showing thumbnail only — Meta didn&apos;t return a playable file URL for this creative yet. Use{" "}
+                    <strong>Sync</strong> on the dashboard to refresh creatives; if it persists, the asset may be restricted by Meta.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Ad copy directly below the image */}
               {ad.body && (
@@ -388,6 +543,11 @@ export function AdDetailPanel({
                         </ResponsiveContainer>
                       </div>
                     </div>
+                  )}
+
+                  {/* Video analysis (same data as Performance tab) */}
+                  {isVideo && breakdowns?.video && breakdowns.video.plays > 0 && (
+                    <VideoAnalysisSection video={breakdowns.video} chartGradientId="ad-detail-vid-overview" />
                   )}
 
                   {/* Breakdowns loading */}
@@ -599,116 +759,9 @@ export function AdDetailPanel({
                   )}
 
                   {/* ── Video Analysis (Audience retention curve) ── */}
-                  {isVideo && breakdowns?.video && breakdowns.video.plays > 0 && (() => {
-                    const v = breakdowns.video;
-                    const plays = v.plays || 1;
-                    const videoStats = [
-                      {
-                        label: "Video plays",
-                        value: formatCompact(v.plays),
-                        tooltip: "Total number of videos that started playing",
-                      },
-                      {
-                        label: "Video average play time",
-                        value: v.avg_time_seconds != null ? formatVideoTime(v.avg_time_seconds) : "—",
-                        tooltip: "Average time viewers watched the video",
-                      },
-                      {
-                        label: "Hook rate",
-                        value: v.hook_rate != null ? `${v.hook_rate}%` : "—",
-                        tooltip: "3-second video views ÷ impressions. Matches Meta Ads Manager.",
-                      },
-                      {
-                        label: "Hold rate",
-                        value: v.hold_rate != null ? `${v.hold_rate}%` : "—",
-                        tooltip: "ThruPlays (15s or completion) ÷ 3-second video views. Matches Meta Ads Manager custom metric.",
-                      },
-                    ];
-                    const retentionData = [
-                      { time: 0, timeLabel: "00:00", pct: 100 },
-                      { time: 25, timeLabel: "00:04", pct: Math.round((v.p25 / plays) * 100) },
-                      { time: 50, timeLabel: "00:08", pct: Math.round((v.p50 / plays) * 100) },
-                      { time: 75, timeLabel: "00:12", pct: Math.round((v.p75 / plays) * 100) },
-                      { time: 100, timeLabel: "00:15", pct: Math.round((v.p100 / plays) * 100) },
-                    ];
-                    return (
-                      <div className="rounded-xl border border-border/50 bg-white p-5">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-[15px] font-bold text-foreground">Video analysis</h4>
-                          <div className="relative">
-                            <select
-                              className="h-8 rounded-lg border border-border/70 bg-white pl-3 pr-8 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring appearance-none cursor-pointer"
-                              defaultValue="retention"
-                            >
-                              <option value="retention">Audience retention</option>
-                            </select>
-                            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                          </div>
-                        </div>
-                        <TooltipProvider>
-                          <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                            {videoStats.map((stat) => (
-                              <div key={stat.label}>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[12px] text-muted-foreground">{stat.label}</span>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="max-w-[200px] rounded-lg">
-                                      {stat.tooltip}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                                <p className="text-[18px] font-bold tabular-nums text-foreground mt-0.5">{stat.value}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </TooltipProvider>
-                        <div className="h-[200px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={retentionData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
-                              <defs>
-                                <linearGradient id="retentionFill" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#9f85fd" stopOpacity={0.4} />
-                                  <stop offset="100%" stopColor="#9f85fd" stopOpacity={0.05} />
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={true} vertical={false} />
-                              <XAxis
-                                dataKey="timeLabel"
-                                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                                axisLine={false}
-                                tickLine={false}
-                              />
-                              <YAxis
-                                domain={[0, 100]}
-                                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                                tickFormatter={(n) => `${n}%`}
-                                width={40}
-                                axisLine={false}
-                                tickLine={false}
-                              />
-                              <RechartsTooltip
-                                contentStyle={{ backgroundColor: "#fff", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 13, boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}
-                                formatter={(value: unknown) => [`${value}%`, "Viewers"]}
-                                labelFormatter={(_, payload) => payload?.[0]?.payload?.timeLabel ?? ""}
-                              />
-                              <Area
-                                type="monotone"
-                                dataKey="pct"
-                                stroke="#9f85fd"
-                                strokeWidth={2}
-                                fill="url(#retentionFill)"
-                                dot={false}
-                                activeDot={{ r: 4, fill: "#9f85fd", strokeWidth: 2, stroke: "#fff" }}
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {isVideo && breakdowns?.video && breakdowns.video.plays > 0 && (
+                    <VideoAnalysisSection video={breakdowns.video} chartGradientId="ad-detail-vid-perf" />
+                  )}
 
                 </>
               )}

@@ -142,6 +142,11 @@ export async function GET(req: Request) {
     let totalThruPlays = 0;
     let avgTimeSum = 0;
     let avgTimeCount = 0;
+    let totalVideoViewsFromActions = 0;
+    for (const row of videoRows ?? []) {
+      totalVideoViewsFromActions += extractByActionType(row.actions, "video_view");
+    }
+
     for (const row of videoRows ?? []) {
       totalPlays += extractVideoMetric(row.video_play_actions);
       totalP25 += extractVideoMetric(row.video_p25_watched_actions);
@@ -161,7 +166,12 @@ export async function GET(req: Request) {
       }
     }
     const vRow = videoRows?.[0] ?? {};
-    const plays = totalPlays || extractVideoMetric(vRow.video_play_actions);
+    // video_play_actions is sometimes empty while actions.video_view (3s views) is populated
+    const plays =
+      totalPlays ||
+      extractVideoMetric(vRow.video_play_actions) ||
+      totalVideoViewsFromActions ||
+      extractByActionType(vRow.actions, "video_view");
     const p100 = totalP100 || extractVideoMetric(vRow.video_p100_watched_actions);
     const impressions = totalImpressions || Number(vRow.impressions ?? 0);
     let videoViews3s =
