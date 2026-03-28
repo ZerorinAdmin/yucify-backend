@@ -101,6 +101,19 @@ export async function GET(request: NextRequest) {
     flow.return_path && String(flow.return_path).startsWith("/")
       ? String(flow.return_path)
       : "/dashboard/connect-meta";
+
+  if (returnPath.startsWith("/onboarding/")) {
+    await supabase
+      .from("profiles")
+      .update({
+        meta_connected: true,
+        onboarding_step: "meta_connected",
+        onboarding_completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", flow.user_id);
+  }
+
   const separator = returnPath.includes("?") ? "&" : "?";
   return NextResponse.redirect(
     `${origin}${returnPath}${separator}state=${encodeURIComponent(state)}`
