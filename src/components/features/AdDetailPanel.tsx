@@ -674,7 +674,7 @@ export function AdDetailPanel({
   const isDiagnosis = variant === "diagnosis";
 
   function saveDiagnosisToBoard(): void {
-    if (!aha) return;
+    if (!aha || !ad) return;
     setSaveBoardLoading(true);
     setSaveBoardStatus(null);
     try {
