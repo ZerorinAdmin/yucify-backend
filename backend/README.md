@@ -24,5 +24,7 @@ BACKEND_SECRET=dev-secret npm run dev
 | Secret | Required | Description |
 |--------|----------|-------------|
 | `BACKEND_SECRET` | Yes | Shared with Vercel; authenticates requests |
+| `OPENAI_API_KEY` | Yes | Used for `/transcribe-0-5s` (audio → text) |
+| `FFMPEG_PATH` | No | Absolute path to `ffmpeg` on macOS if `spawn ffmpeg` fails (ENOENT); otherwise `/opt/homebrew/bin/ffmpeg` and `/usr/local/bin/ffmpeg` are tried, then `PATH` |
 | `ADSPY_FACEBOOK_PROFILE` | No | Path for persistent login (e.g. `/data/fb-profile`) |
 | `ADSPY_HEADLESS` | No | `false` for visible browser (default: headless) |

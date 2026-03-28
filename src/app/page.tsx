@@ -2,6 +2,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { SignInButtons } from "@/components/auth/SignInButtons";
+import { requiresOnboardingRedirect } from "@/lib/onboarding/server";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -10,6 +11,10 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
 
   if (user) {
+    const needsOnboarding = await requiresOnboardingRedirect(supabase, user.id);
+    if (needsOnboarding) {
+      redirect("/onboarding/intro");
+    }
     redirect("/dashboard");
   }
 

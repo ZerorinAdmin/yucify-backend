@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Bookmark,
+  Loader2,
 } from "lucide-react";
 import {
   AreaChart,
@@ -36,6 +38,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Tooltip,
@@ -44,14 +48,52 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
-import type { AdSummary } from "@/app/(dashboard)/dashboard/page";
+import { cn } from "@/lib/utils";
+import type { AdSummary } from "@/lib/meta/ad-summary";
+import { upsertSavedAnalysisToLocalStorage } from "@/lib/adspy/saved-analyses-local";
+
+const TRANSCRIPT_CHANGE_TYPE_LABELS: Record<string, string> = {
+  pattern_interrupt: "Pattern interruption",
+  outcome_shift: "Outcome shift",
+  specificity: "Specificity",
+  angle: "New angle",
+  emotion: "Emotional lift",
+  structure: "Structure",
+};
+
+function labelTranscriptChangeType(raw: string): string {
+  const key = raw.trim();
+  if (TRANSCRIPT_CHANGE_TYPE_LABELS[key]) return TRANSCRIPT_CHANGE_TYPE_LABELS[key];
+  if (!key) return "";
+  return key
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/** Strip model artifacts like "Change: specificity" from display (cached payloads). */
+const LEADING_CHANGE_SLUG_RE = /^\s*Change:\s*[a-z_]+(?:\s*[.–—,-])?\s*/i;
+
+function scrubDiagnosisChangePrefixLine(s: string): string {
+  const trimmed = s.trim();
+  if (/^\s*Change:\s*[a-z_]+\s*$/i.test(trimmed)) return "";
+  const cleaned = trimmed
+    .replace(LEADING_CHANGE_SLUG_RE, "")
+    .replace(/\bhook_rate\b/gi, "hook rate")
+    .replace(/\bhold_rate\b/gi, "hold rate")
+    .replace(/\bavg_time_seconds\b/gi, "avg time seconds")
+    .replace(/\btranscript_0_5s\b/gi, "transcript 0-5s")
+    .replace(/\bocr_text\b/gi, "OCR text")
+    .trim();
+  return cleaned.length > 0 ? cleaned : trimmed;
+}
 
 type MetricRow = {
   ad_id: string;
   date: string;
   spend: number;
   impressions: number;
-  reach: number;
+  reach?: number;
   clicks: number;
   ctr: number;
   cpc: number;
@@ -211,7 +253,7 @@ function VideoAnalysisSection({
   video: VideoData;
   chartGradientId: string;
 }) {
-  const plays = video.plays || 1;
+  const denominator = Math.max(video.plays, video.p25, video.p50, video.p75, video.p100, 1);
   const videoStats = [
     {
       label: "Video plays",
@@ -236,10 +278,10 @@ function VideoAnalysisSection({
   ];
   const retentionData = [
     { time: 0, timeLabel: "00:00", pct: 100 },
-    { time: 25, timeLabel: "00:04", pct: Math.round((video.p25 / plays) * 100) },
-    { time: 50, timeLabel: "00:08", pct: Math.round((video.p50 / plays) * 100) },
-    { time: 75, timeLabel: "00:12", pct: Math.round((video.p75 / plays) * 100) },
-    { time: 100, timeLabel: "00:15", pct: Math.round((video.p100 / plays) * 100) },
+    { time: 25, timeLabel: "00:04", pct: Math.round((video.p25 / denominator) * 100) },
+    { time: 50, timeLabel: "00:08", pct: Math.round((video.p50 / denominator) * 100) },
+    { time: 75, timeLabel: "00:12", pct: Math.round((video.p75 / denominator) * 100) },
+    { time: 100, timeLabel: "00:15", pct: Math.round((video.p100 / denominator) * 100) },
   ];
 
   return (
@@ -328,29 +370,265 @@ function VideoAnalysisSection({
   );
 }
 
+/** Normalized 0–5s transcript replacement line from ad diagnosis AI. */
+export type AdDiagnosisTranscriptSuggestion = {
+  line: string;
+  change_type: string;
+  based_on: string;
+};
+
+/** Raw ad diagnosis from API or cache — fields may be partial. */
+export type AdDiagnosisAhaInput = {
+  ad_id: string;
+  bottleneck?: string;
+  evidence?: string[] | null;
+  fixes?: Array<{
+    fix?: string;
+    type?: string;
+    specificity_check?: { mentions_caption_token?: boolean; has_concrete_element?: boolean };
+  }> | null;
+  priority_fix?: {
+    headline?: string;
+    primary_section?: string;
+    follow_section?: string;
+    rationale?: string;
+  };
+  audits?: {
+    caption?: {
+      reason?: string;
+      impact?: string;
+      evidence?: string[] | null;
+      suggestions?: string[] | null;
+    };
+    ocr_text?: {
+      reason?: string;
+      impact?: string;
+      evidence?: string[] | null;
+      suggestions?:
+        | string[]
+        | Array<{ line?: string; change_type?: string; based_on?: string }>
+        | null;
+    };
+    transcript_0_5s?: {
+      reason?: string;
+      evidence?: string[] | null;
+      suggestions?:
+        | string[]
+        | Array<{ line?: string; change_type?: string; based_on?: string }>
+        | null;
+    };
+  } | null;
+};
+
+function normalizeTranscriptSuggestions(raw: unknown): AdDiagnosisTranscriptSuggestion[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AdDiagnosisTranscriptSuggestion[] = [];
+  for (const x of raw) {
+    if (typeof x === "string" && x.trim()) {
+      out.push({ line: x.trim(), change_type: "—", based_on: "—" });
+      continue;
+    }
+    if (x && typeof x === "object") {
+      const o = x as Record<string, unknown>;
+      const line = typeof o.line === "string" ? o.line.trim() : "";
+      if (!line) continue;
+      const basedRaw = typeof o.based_on === "string" ? o.based_on.trim() : "";
+      const basedScrubbed = scrubDiagnosisChangePrefixLine(basedRaw);
+      const basedOn =
+        basedScrubbed.length > 0
+          ? basedScrubbed
+          : !basedRaw || /^\s*Change:\s*[a-z_]+\s*$/i.test(basedRaw)
+            ? "—"
+            : basedRaw;
+      out.push({
+        line,
+        change_type:
+          typeof o.change_type === "string" && o.change_type.trim() ? o.change_type.trim() : "—",
+        based_on: basedOn,
+      });
+    }
+  }
+  return out;
+}
+
+const PRIORITY_PRIMARY_LABELS: Record<string, string> = {
+  transcript_0_5s: "Transcript (0–5s)",
+  caption: "Caption",
+  creative_visual: "Creative / on-screen (OCR)",
+  audience: "Audience",
+};
+
+const PRIORITY_FOLLOW_LABELS: Record<string, string> = {
+  transcript_0_5s: "Transcript (0–5s) check",
+  caption: "Caption check",
+  fixes_to_ship: "Fixes to ship",
+  none: "",
+};
+
+function normalizePriorityFix(aha: AdDiagnosisAhaInput): {
+  headline: string;
+  primary_section: "transcript_0_5s" | "caption" | "creative_visual" | "audience" | null;
+  follow_section: "transcript_0_5s" | "caption" | "fixes_to_ship" | "none";
+  rationale: string;
+} {
+  const raw = aha.priority_fix;
+  const validPrimary = ["transcript_0_5s", "caption", "creative_visual", "audience"] as const;
+  const validFollow = ["transcript_0_5s", "caption", "fixes_to_ship", "none"] as const;
+  if (raw && typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    const headline = typeof o.headline === "string" ? o.headline.trim() : "";
+    const rationale = typeof o.rationale === "string" ? scrubDiagnosisChangePrefixLine(o.rationale) : "";
+    const ps = o.primary_section;
+    const fs = o.follow_section;
+    const primaryOk = validPrimary.includes(ps as (typeof validPrimary)[number])
+      ? (ps as (typeof validPrimary)[number])
+      : null;
+    const followOk = validFollow.includes(fs as (typeof validFollow)[number])
+      ? (fs as (typeof validFollow)[number])
+      : "none";
+    if (headline && rationale && primaryOk) {
+      return {
+        headline,
+        primary_section: primaryOk,
+        follow_section: followOk,
+        rationale,
+      };
+    }
+  }
+  return {
+    headline: "",
+    primary_section: null,
+    follow_section: "none",
+    rationale: "",
+  };
+}
+
+/** Map AI primary_section to one of three UI blocks for highlighting. */
+function diagnosisHighlightKey(
+  primary: "transcript_0_5s" | "caption" | "creative_visual" | "audience" | null
+): "caption" | "transcript" | "fixes" | "ocr" | null {
+  if (!primary) return null;
+  if (primary === "caption") return "caption";
+  if (primary === "transcript_0_5s") return "transcript";
+  if (primary === "creative_visual") return "ocr";
+  if (primary === "audience") return "fixes";
+  return null;
+}
+
+function diagnosisSectionRing(active: boolean): string {
+  return active
+    ? "ring-2 ring-primary/35 border-primary/30 shadow-sm"
+    : "border-border/50";
+}
+
+/** Coerce API / cached diagnosis payloads so missing arrays or strings never crash the UI. */
+function normalizeAdDiagnosisAha(aha: AdDiagnosisAhaInput) {
+  const dash = "—";
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : dash);
+  const arr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const scrubbedStrings = (v: unknown): string[] =>
+    arr(v)
+      .map((x) => scrubDiagnosisChangePrefixLine(x))
+      .filter((x) => x.length > 0);
+  const auditsIn = aha.audits ?? {};
+  const cap = auditsIn.caption ?? {};
+  const ocr = auditsIn.ocr_text ?? {};
+  const tr = auditsIn.transcript_0_5s ?? {};
+  const fixesRaw = Array.isArray(aha.fixes) ? aha.fixes : [];
+  return {
+    bottleneck: str(aha.bottleneck),
+    evidence: scrubbedStrings(aha.evidence),
+    fixes: fixesRaw.map((f) => {
+      const sc = f?.specificity_check ?? {};
+      return {
+        fix: str(f?.fix),
+        type: typeof f?.type === "string" && f.type.trim() ? f.type.trim() : "—",
+        specificity_check: {
+          mentions_caption_token: Boolean(sc.mentions_caption_token),
+          has_concrete_element: Boolean(sc.has_concrete_element),
+        },
+      };
+    }),
+    priority_fix: normalizePriorityFix(aha),
+    audits: {
+      caption: {
+        reason: str(typeof cap.reason === "string" ? scrubDiagnosisChangePrefixLine(cap.reason) : ""),
+        impact: str(typeof cap.impact === "string" ? scrubDiagnosisChangePrefixLine(cap.impact) : ""),
+        evidence: scrubbedStrings(cap.evidence),
+        suggestions: scrubbedStrings(cap.suggestions),
+      },
+      ocr_text: {
+        reason: str(typeof ocr.reason === "string" ? scrubDiagnosisChangePrefixLine(ocr.reason) : ""),
+        impact: str(typeof ocr.impact === "string" ? scrubDiagnosisChangePrefixLine(ocr.impact) : ""),
+        evidence: scrubbedStrings(ocr.evidence),
+        suggestions: normalizeTranscriptSuggestions(ocr.suggestions),
+      },
+      transcript_0_5s: {
+        reason: str(typeof tr.reason === "string" ? scrubDiagnosisChangePrefixLine(tr.reason) : ""),
+        evidence: scrubbedStrings(tr.evidence),
+        suggestions: normalizeTranscriptSuggestions(tr.suggestions),
+      },
+    },
+  };
+}
+
 /* ── Main panel ── */
+function hasVideoBreakdownData(video: VideoData): boolean {
+  return (
+    video.plays > 0 ||
+    video.p25 > 0 ||
+    video.p50 > 0 ||
+    video.p75 > 0 ||
+    video.p100 > 0 ||
+    (video.impressions != null && video.impressions > 0 && (video.hook_rate != null || video.hold_rate != null))
+  );
+}
+
 export function AdDetailPanel({
   ad,
   metrics,
+  dateFrom,
+  dateTo,
   open,
   onClose,
+  aha = null,
+  ahaError = null,
+  variant = "dashboard",
 }: {
   ad: AdSummary | null;
   metrics: MetricRow[];
+  /** Must match dashboard metrics range so video insights are not stuck on Meta `last_30d`. */
+  dateFrom: string;
+  dateTo: string;
   open: boolean;
   onClose: () => void;
+  aha?: AdDiagnosisAhaInput | null;
+  ahaError?: string | null;
+  /** `dashboard`: full Overview / Performance + metrics. `diagnosis`: creative + copy only (Diagnosis page). */
+  variant?: "dashboard" | "diagnosis";
 }) {
   const [chartMetric, setChartMetric] = useState<ChartMetric>("spend");
   const [actions, setActions] = useState<Record<string, ActionData>>({});
   const [breakdowns, setBreakdowns] = useState<BreakdownData>(null);
   const [breakdownsLoading, setBreakdownsLoading] = useState(false);
   const [tab, setTab] = useState<"overview" | "performance">("overview");
+  const [saveBoardLoading, setSaveBoardLoading] = useState(false);
+  const [saveBoardDone, setSaveBoardDone] = useState(false);
+  const [saveBoardStatus, setSaveBoardStatus] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (!ad) return;
     setTab("overview");
     setBreakdowns(null);
+    setActions({});
+    setSaveBoardDone(false);
+    setSaveBoardStatus(null);
+
+    if (variant === "diagnosis") {
+      setBreakdownsLoading(false);
+      return;
+    }
 
     fetch("/api/meta/actions")
       .then((r) => r.json())
@@ -358,14 +636,19 @@ export function AdDetailPanel({
       .catch(() => setActions({}));
 
     setBreakdownsLoading(true);
-    fetch(`/api/meta/ad-breakdowns?ad_id=${encodeURIComponent(ad.ad_id)}`)
+    const qs = new URLSearchParams({
+      ad_id: ad.ad_id,
+      from: dateFrom,
+      to: dateTo,
+    });
+    fetch(`/api/meta/ad-breakdowns?${qs.toString()}`)
       .then((r) => r.json())
       .then((data) => {
         if (!data.error) setBreakdowns(data);
       })
       .catch(() => {})
       .finally(() => setBreakdownsLoading(false));
-  }, [ad]);
+  }, [ad, dateFrom, dateTo, variant]);
 
   if (!ad) return null;
 
@@ -377,7 +660,7 @@ export function AdDetailPanel({
     date: formatDate(m.date),
     spend: Number(m.spend),
     impressions: Number(m.impressions),
-    reach: Number(m.reach),
+    reach: Number(m.reach ?? 0),
     clicks: Number(m.clicks),
   }));
 
@@ -387,9 +670,46 @@ export function AdDetailPanel({
   const activeChart = CHART_OPTIONS.find((c) => c.id === chartMetric) ?? CHART_OPTIONS[0];
   const actionEntries = Object.entries(actions).filter(([, v]) => v.count > 0);
 
+  const isDashboard = variant === "dashboard";
+  const isDiagnosis = variant === "diagnosis";
+
+  function saveDiagnosisToBoard(): void {
+    if (!aha) return;
+    setSaveBoardLoading(true);
+    setSaveBoardStatus(null);
+    try {
+      upsertSavedAnalysisToLocalStorage({
+        page_id: `diagnosis:${ad.ad_id}`,
+        page_name: ad.ad_name,
+        analysis: {
+          surface: "health_diagnosis",
+          ad_id: ad.ad_id,
+          ad_name: ad.ad_name,
+          date_from: dateFrom,
+          date_to: dateTo,
+          diagnosis: aha,
+        },
+        ad_count: null,
+        dominant_format: null,
+      });
+      setSaveBoardDone(true);
+      setSaveBoardStatus("Saved to My Boards");
+    } catch (e) {
+      setSaveBoardStatus(e instanceof Error ? e.message : "Failed to save analysis");
+    } finally {
+      setSaveBoardLoading(false);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden overflow-x-hidden rounded-none border-0 p-0 sm:left-[50%] sm:top-[50%] sm:h-[88vh] sm:max-h-[88vh] sm:w-[min(1320px,92vw)] sm:max-w-[92vw] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border sm:border-border/40">
+      <DialogContent
+        className={cn(
+          "left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden overflow-x-hidden rounded-none border-0 p-0 sm:left-[50%] sm:top-[50%] sm:h-[88vh] sm:max-h-[88vh] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border sm:border-border/40",
+          isDashboard && "sm:w-[min(1320px,92vw)] sm:max-w-[92vw]",
+          isDiagnosis && "sm:w-[min(1120px,96vw)] sm:max-w-[96vw]"
+        )}
+      >
 
         {/* Accessible header */}
         <DialogHeader className="sr-only">
@@ -397,9 +717,13 @@ export function AdDetailPanel({
           <DialogDescription>{ad.campaign_name}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] lg:flex-row lg:overflow-hidden">
-
-          {/* ── Left: Creative (scrolls with page on mobile; own scroll on lg) ── */}
+        <div
+          className={cn(
+            "flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]",
+            (isDashboard || isDiagnosis) && "lg:flex-row lg:overflow-hidden"
+          )}
+        >
+          {/* ── Left: Ad details (creative + copy) — dashboard & diagnosis ── */}
           <div className="w-full min-w-0 shrink-0 overflow-x-hidden border-b border-border/40 bg-white lg:w-[440px] lg:max-w-[440px] lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
             <div className="space-y-5 p-4 pr-12 sm:p-6 sm:pr-14">
 
@@ -477,7 +801,331 @@ export function AdDetailPanel({
             </div>
           </div>
 
-          {/* ── Right: Data (single scroll on mobile via parent; pane scroll on lg) ── */}
+          {/* ── Right: Ad analysis (diagnosis modal — placeholder until per-ad AI exists) ── */}
+          {isDiagnosis && (
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-muted/15 lg:min-h-0">
+              <div className="shrink-0 border-b border-border/40 bg-white px-4 py-3 pr-14 sm:px-6 sm:py-3.5 sm:pr-[5.5rem]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-[15px] font-semibold text-foreground">Ad analysis</h3>
+                  <Button
+                    type="button"
+                    variant={saveBoardDone ? "secondary" : "default"}
+                    className={cn(
+                      "h-9 w-auto shrink-0 self-start",
+                      !saveBoardDone && "bg-[hsl(250,60%,55%)] hover:bg-[hsl(250,60%,48%)]"
+                    )}
+                    onClick={saveDiagnosisToBoard}
+                    disabled={saveBoardLoading || !aha}
+                  >
+                    {saveBoardLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Bookmark className={cn("mr-2 h-4 w-4", saveBoardDone && "fill-current")} />
+                    )}
+                    {saveBoardDone ? "Saved to My Boards" : "Save to My Boards"}
+                  </Button>
+                </div>
+                {saveBoardStatus ? (
+                  <p className="mt-2 text-[12px] text-muted-foreground">{saveBoardStatus}</p>
+                ) : null}
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-6 lg:overscroll-y-contain">
+                {aha ? (
+                  <div className="w-full max-w-2xl">
+                    {(() => {
+                      const d = normalizeAdDiagnosisAha(aha);
+                      const transcriptEmpty =
+                        d.audits.transcript_0_5s.evidence.length === 0 &&
+                        d.audits.transcript_0_5s.suggestions.length === 0;
+                      const highlight = diagnosisHighlightKey(d.priority_fix.primary_section);
+                      return (
+                    <Card className="border-border/50 bg-white/90 shadow-none">
+                      <CardContent className="space-y-5 text-[13px] leading-relaxed">
+                        <div>
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Bottleneck</p>
+                          <p className="mt-1 text-foreground">{d.bottleneck}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Evidence</p>
+                          {d.evidence.length > 0 ? (
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-foreground/90">
+                              {d.evidence.map((e, i) => (
+                                <li key={i}>{e}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-muted-foreground">No evidence lines returned.</p>
+                          )}
+                        </div>
+
+                        {d.priority_fix.headline ? (
+                          <div className="rounded-lg border border-violet-200/80 bg-violet-50/50 p-4 dark:border-violet-900/40 dark:bg-violet-950/25">
+                            <p className="text-[12px] font-semibold uppercase tracking-wide text-violet-800 dark:text-violet-200">
+                              Priority fix
+                            </p>
+                            <p className="mt-2 text-[14px] font-medium leading-snug text-foreground">
+                              {d.priority_fix.headline}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Badge variant="secondary" className="text-[11px] font-normal">
+                                Start: {PRIORITY_PRIMARY_LABELS[d.priority_fix.primary_section ?? ""] ?? d.priority_fix.primary_section}
+                              </Badge>
+                              {d.priority_fix.follow_section !== "none" ? (
+                                <Badge variant="outline" className="text-[11px] font-normal">
+                                  Next:{" "}
+                                  {PRIORITY_FOLLOW_LABELS[d.priority_fix.follow_section] ??
+                                    d.priority_fix.follow_section}
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
+                              {d.priority_fix.rationale}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-4">
+                            <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              Priority fix
+                            </p>
+                            <p className="mt-2 text-[13px] text-muted-foreground">
+                              No priority guidance in this response. Run <strong>Diagnose Ads</strong> again to generate
+                              section order.
+                            </p>
+                          </div>
+                        )}
+
+                        <div
+                          id="diagnosis-fixes"
+                          className={cn(
+                            "space-y-3 rounded-lg border bg-white/80 p-4 transition-shadow",
+                            diagnosisSectionRing(highlight === "fixes")
+                          )}
+                        >
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Fixes to ship</p>
+                          {d.fixes.length > 0 ? (
+                            <ul className="mt-2 list-disc space-y-2 pl-5 text-foreground/90">
+                              {d.fixes.map((f, i) => (
+                                <li key={i}>
+                                  <span className="font-medium text-foreground">{f.type}</span>
+                                  {": "}
+                                  {f.fix}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-muted-foreground">No fixes returned.</p>
+                          )}
+                        </div>
+
+                        <div
+                          id="diagnosis-caption"
+                          className={cn(
+                            "space-y-3 rounded-lg border bg-white/80 p-4 transition-shadow",
+                            diagnosisSectionRing(highlight === "caption")
+                          )}
+                        >
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Caption check
+                          </p>
+                          <div className="space-y-2">
+                            <p className="text-[11px] font-semibold text-muted-foreground">Observation</p>
+                            <p className="text-foreground/90 leading-relaxed">{d.audits.caption.reason}</p>
+                          </div>
+                          <div className="space-y-2 border-t border-border/40 pt-3">
+                            <p className="text-[11px] font-semibold text-muted-foreground">What this causes</p>
+                            <p className="text-foreground/90 leading-relaxed">{d.audits.caption.impact}</p>
+                          </div>
+                          {d.audits.caption.evidence.length > 0 ? (
+                            <div className="space-y-2 border-t border-border/40 pt-3">
+                              <p className="text-[11px] font-semibold text-muted-foreground">Supporting notes</p>
+                              <ul className="list-disc space-y-1 pl-5 text-foreground/90 leading-relaxed">
+                                {d.audits.caption.evidence.map((x, i) => (
+                                  <li key={i}>{x}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {d.audits.caption.suggestions.length > 0 ? (
+                            <div className="space-y-2 border-t border-border/40 pt-3">
+                              <p className="text-[11px] font-semibold text-muted-foreground">Suggestions</p>
+                              <ul className="list-disc space-y-1 pl-5 text-foreground/90 leading-relaxed">
+                                {d.audits.caption.suggestions.map((x, i) => (
+                                  <li key={i}>{x}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {d.audits.caption.evidence.length === 0 && d.audits.caption.suggestions.length === 0 ? (
+                            <p className="border-t border-border/40 pt-3 text-muted-foreground">
+                              No supporting bullets or suggestions returned for caption.
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div
+                          id="diagnosis-ocr"
+                          className={cn(
+                            "space-y-3 rounded-lg border bg-white/80 p-4 transition-shadow",
+                            diagnosisSectionRing(highlight === "ocr")
+                          )}
+                        >
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            On-image text analysis
+                          </p>
+                          <div className="space-y-2">
+                            <p className="text-[11px] font-semibold text-muted-foreground">Observation</p>
+                            <p className="text-foreground/90 leading-relaxed">{d.audits.ocr_text.reason}</p>
+                          </div>
+                          <div className="space-y-2 border-t border-border/40 pt-3">
+                            <p className="text-[11px] font-semibold text-muted-foreground">What this causes</p>
+                            <p className="text-foreground/90 leading-relaxed">{d.audits.ocr_text.impact}</p>
+                          </div>
+                          {d.audits.ocr_text.evidence.length > 0 ? (
+                            <div className="space-y-2 border-t border-border/40 pt-3">
+                              <p className="text-[11px] font-semibold text-muted-foreground">Extracted text evidence</p>
+                              <ul className="list-disc space-y-1 pl-5 text-foreground/90 leading-relaxed">
+                                {d.audits.ocr_text.evidence.map((x, i) => (
+                                  <li key={i}>{x}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {d.audits.ocr_text.suggestions.length > 0 ? (
+                            <div className="space-y-2 border-t border-border/40 pt-3">
+                              <p className="text-[11px] font-semibold text-muted-foreground">Overlay rewrite suggestions</p>
+                              <ul className="space-y-3">
+                                {d.audits.ocr_text.suggestions.map((s, i) => (
+                                  <li
+                                    key={i}
+                                    className="rounded-md border border-border/50 bg-muted/20 p-3 text-[13px] leading-relaxed"
+                                  >
+                                    <p className="font-medium text-foreground">{s.line}</p>
+                                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                                      <Badge variant="secondary" className="text-[10px] font-normal">
+                                        {labelTranscriptChangeType(s.change_type)}
+                                      </Badge>
+                                    </div>
+                                    {s.based_on && s.based_on !== "—" ? (
+                                      <p className="mt-2 text-[12px] text-muted-foreground">{s.based_on}</p>
+                                    ) : null}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {d.audits.ocr_text.evidence.length === 0 && d.audits.ocr_text.suggestions.length === 0 ? (
+                            <p className="border-t border-border/40 pt-3 text-muted-foreground">
+                              No OCR text evidence available in this response.
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div
+                          id="diagnosis-transcript"
+                          className={cn(
+                            "space-y-3 rounded-lg border bg-white/80 p-4 transition-shadow",
+                            diagnosisSectionRing(highlight === "transcript")
+                          )}
+                        >
+                          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Transcript analysis</p>
+                          <p className="text-foreground/90">{d.audits.transcript_0_5s.reason}</p>
+                          {!transcriptEmpty ? (
+                            <>
+                              {d.audits.transcript_0_5s.evidence.length > 0 ? (
+                                <>
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Evidence</p>
+                                  <ul className="list-disc space-y-1 pl-5 text-foreground/90">
+                                    {d.audits.transcript_0_5s.evidence.map((x, i) => (
+                                      <li key={i}>{x}</li>
+                                    ))}
+                                  </ul>
+                                </>
+                              ) : null}
+                              {d.audits.transcript_0_5s.suggestions.length > 0 ? (
+                                <div className="space-y-3 border-t border-border/40 pt-3">
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Hook alternatives (structured)
+                                  </p>
+                                  <ul className="space-y-3">
+                                    {d.audits.transcript_0_5s.suggestions.map((s, i) => (
+                                      <li
+                                        key={i}
+                                        className="rounded-md border border-border/50 bg-muted/20 p-3 text-[13px] leading-relaxed"
+                                      >
+                                        <p className="font-medium text-foreground">{s.line}</p>
+                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                          <Badge variant="secondary" className="text-[10px] font-normal">
+                                            {labelTranscriptChangeType(s.change_type)}
+                                          </Badge>
+                                        </div>
+                                        {s.based_on && s.based_on !== "—" ? (
+                                          <p className="mt-2 text-[12px] text-muted-foreground">{s.based_on}</p>
+                                        ) : null}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            </>
+                          ) : (
+                            <p className="text-muted-foreground">
+                              {isVideo
+                                ? "No transcript (0–5s) lines in this response — we did not require transcript wording from the model."
+                                : "No transcript section for non-video creatives."}
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                      );
+                    })()}
+                  </div>
+                ) : ahaError ? (
+                  <div className="flex flex-1 items-center justify-center">
+                    <Card className="w-full max-w-md border-border/50 bg-white/90 shadow-none">
+                      <CardHeader className="space-y-2 pb-2 text-center">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted/60">
+                          <BarChart3 className="h-6 w-6 text-muted-foreground" strokeWidth={1.5} />
+                        </div>
+                        <CardTitle className="text-base font-semibold">Ad analysis unavailable</CardTitle>
+                        <CardDescription className="text-[13px] leading-relaxed">
+                          {ahaError}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pb-6 text-center">
+                        <p className="text-[13px] font-medium text-foreground/80">
+                          Click <strong>Diagnose Ads</strong> again to retry.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <div className="flex flex-1 items-center justify-center">
+                    <Card className="w-full max-w-md border-dashed border-border/60 bg-white/80 shadow-none">
+                      <CardHeader className="space-y-3 pb-2 text-center">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted/60">
+                          <BarChart3 className="h-6 w-6 text-muted-foreground" strokeWidth={1.5} />
+                        </div>
+                        <CardTitle className="text-base font-semibold">Run Diagnose Ads</CardTitle>
+                        <CardDescription className="text-[13px] leading-relaxed">
+                          Click <strong>Diagnose Ads</strong> on the Health page to generate ad-level Issue/Cause/Fix for the top 3 ads.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pb-6 text-center">
+                        <p className="text-[13px] font-medium text-foreground/80">
+                          This panel updates automatically after diagnosis.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Right: Data (dashboard only — Overview / Performance) ── */}
+          {isDashboard && (
           <div className="flex min-w-0 shrink-0 flex-col overflow-x-hidden bg-white lg:min-h-0 lg:shrink lg:flex-1">
 
             {/* Tabs */}
@@ -546,7 +1194,7 @@ export function AdDetailPanel({
                   )}
 
                   {/* Video analysis (same data as Performance tab) */}
-                  {isVideo && breakdowns?.video && breakdowns.video.plays > 0 && (
+                  {isVideo && breakdowns?.video && hasVideoBreakdownData(breakdowns.video) && (
                     <VideoAnalysisSection video={breakdowns.video} chartGradientId="ad-detail-vid-overview" />
                   )}
 
@@ -759,7 +1407,7 @@ export function AdDetailPanel({
                   )}
 
                   {/* ── Video Analysis (Audience retention curve) ── */}
-                  {isVideo && breakdowns?.video && breakdowns.video.plays > 0 && (
+                  {isVideo && breakdowns?.video && hasVideoBreakdownData(breakdowns.video) && (
                     <VideoAnalysisSection video={breakdowns.video} chartGradientId="ad-detail-vid-perf" />
                   )}
 
@@ -767,6 +1415,7 @@ export function AdDetailPanel({
               )}
             </div>
           </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

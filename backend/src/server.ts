@@ -10,11 +10,18 @@ import "dotenv/config";
  */
 
 import express from "express";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { mkdtemp, rm } from "node:fs/promises";
 
 const app = express();
 app.use(express.json());
 
 const BACKEND_SECRET = process.env.BACKEND_SECRET;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const PORT = Number(process.env.PORT) || 8080;
 
 /** Health check - public, no auth. Fly.io uses this to verify the app is up. */
@@ -32,6 +39,115 @@ function requireSecret(req: express.Request, res: express.Response, next: expres
 }
 
 app.use(requireSecret);
+
+/**
+ * Prefer FFMPEG_PATH, then common Homebrew locations (macOS GUI/Cursor often lack brew on PATH),
+ * else rely on PATH (Docker/Linux).
+ */
+function resolveFfmpegBinary(): string {
+  const fromEnv = process.env.FFMPEG_PATH?.trim();
+  if (fromEnv) {
+    if (existsSync(fromEnv)) return fromEnv;
+    console.warn(`[backend] FFMPEG_PATH is set but file not found: ${fromEnv}`);
+  }
+  const candidates = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return "ffmpeg";
+}
+
+const FFMPEG_BIN = resolveFfmpegBinary();
+
+async function runFfmpegExtractFirst5sAudio(params: { videoUrl: string; outPath: string }): Promise<void> {
+  const { videoUrl, outPath } = params;
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(
+      FFMPEG_BIN,
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-ss",
+        "0",
+        "-t",
+        "5",
+        "-i",
+        videoUrl,
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-f",
+        "mp3",
+        outPath,
+      ],
+      { stdio: ["ignore", "ignore", "pipe"] }
+    );
+    let stderr = "";
+    child.stderr.on("data", (d) => (stderr += String(d)));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr.trim() || `ffmpeg failed with code ${code}`));
+    });
+  });
+}
+
+async function openaiTranscribeMp3(buffer: Buffer): Promise<string> {
+  if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured on backend");
+
+  // Node fetch supports File/FormData in this runtime (Playwright base image uses Node 22).
+  const file = new File([buffer], "audio.mp3", { type: "audio/mpeg" });
+  const form = new FormData();
+  form.set("model", "gpt-4o-mini-transcribe");
+  form.set("file", file);
+  form.set("response_format", "json");
+
+  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`OpenAI transcription failed (${res.status}): ${body.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { text?: string };
+  return String(json.text ?? "").trim();
+}
+
+/** POST /transcribe-0-5s - body: { video_url } */
+app.post("/transcribe-0-5s", async (req, res) => {
+  try {
+    const videoUrl = (req.body?.video_url as string | undefined)?.trim();
+    if (!videoUrl || typeof videoUrl !== "string") {
+      res.status(400).json({ error: "video_url is required" });
+      return;
+    }
+    if (!/^https?:\/\//i.test(videoUrl)) {
+      res.status(400).json({ error: "video_url must be http(s)" });
+      return;
+    }
+
+    const dir = await mkdtemp(path.join(os.tmpdir(), "repto-transcribe-"));
+    const outPath = path.join(dir, "audio.mp3");
+    try {
+      await runFfmpegExtractFirst5sAudio({ videoUrl, outPath });
+      const audio = await readFile(outPath);
+      const text = await openaiTranscribeMp3(audio);
+      // Keep response small; caller already hard-trims before putting into AI prompt.
+      res.json({ transcript_0_5s: text });
+    } finally {
+      await rm(dir, { recursive: true, force: true }).catch(() => {});
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Transcription failed";
+    console.error("[backend] transcribe-0-5s:", message);
+    res.status(500).json({ error: message });
+  }
+});
 
 /** POST /scrape - body: { page_id, country?, active_status? } */
 app.post("/scrape", async (req, res) => {
@@ -106,4 +222,5 @@ app.post("/resolve-page", async (req, res) => {
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`[backend] Listening on 0.0.0.0:${PORT}`);
+  console.log(`[backend] Transcription ffmpeg: ${FFMPEG_BIN}`);
 });

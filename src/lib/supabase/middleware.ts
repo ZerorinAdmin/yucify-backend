@@ -23,7 +23,29 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  try {
+    await supabase.auth.getUser();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isStaleRefreshToken =
+      message.includes("refresh_token_not_found") ||
+      message.includes("Invalid Refresh Token");
+
+    if (isStaleRefreshToken) {
+      // DB reset can invalidate refresh tokens while browser still has old cookies.
+      // Clearing auth cookies allows a clean unauthenticated state.
+      const authCookieNames = request.cookies
+        .getAll()
+        .map((c) => c.name)
+        .filter((name) => name.startsWith("sb-") && name.includes("-auth-token"));
+
+      for (const cookieName of authCookieNames) {
+        response.cookies.delete(cookieName);
+      }
+    } else {
+      throw error;
+    }
+  }
 
   return response;
 }

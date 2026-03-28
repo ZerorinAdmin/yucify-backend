@@ -13,13 +13,22 @@ type ChildAttachment = {
 };
 
 type AssetFeedVideo = { video_id?: string };
+type CallToAction = { type?: string; value?: { link?: string } };
 type RawCreative = {
   id: string;
   thumbnail_url?: string;
   image_url?: string;
   body?: string;
   object_story_spec?: {
-    link_data?: { link?: string; image_hash?: string; child_attachments?: ChildAttachment[] };
+    link_data?: {
+      link?: string;
+      message?: string;
+      name?: string;
+      description?: string;
+      call_to_action?: CallToAction;
+      image_hash?: string;
+      child_attachments?: ChildAttachment[];
+    };
     video_data?: { image_url?: string; video_id?: string };
   };
   asset_feed_spec?: { videos?: AssetFeedVideo[] };
@@ -49,6 +58,9 @@ export type CreativeUpsertRow = {
   thumbnail_url: string;
   image_url: string;
   body: string;
+  headline: string;
+  description: string;
+  cta_type: string;
   link_url: string;
   creative_type: string;
   video_url: string;
@@ -88,7 +100,7 @@ export type CreativeSyncDebugEntry = {
 /** Nested fields so Graph returns video_id (shallow object_story_spec often omits it). */
 const CREATIVE_FIELDS =
   "id,thumbnail_url,image_url,body," +
-  "object_story_spec{video_data{video_id,image_url},link_data{link,child_attachments{picture,link,name}}}," +
+  "object_story_spec{video_data{video_id,image_url},link_data{link,message,name,description,call_to_action{type,value{link}},child_attachments{picture,link,name,description}}}," +
   "asset_feed_spec{videos{video_id}}";
 
 export function extractVideoId(creative: RawCreative | undefined): string | undefined {
@@ -263,6 +275,89 @@ function buildStoryShape(creative: RawCreative | undefined): CreativeSyncDebugEn
 }
 
 /**
+ * True if the URL can be passed to ffmpeg as `-i` (direct media stream).
+ * Facebook plugin / watch pages are HTML, not a downloadable video file.
+ */
+export function isFfmpegIngestibleVideoUrl(url: string): boolean {
+  const u = url.trim();
+  if (!/^https:\/\//i.test(u)) return false;
+  if (/facebook\.com\/plugins\/video\.php/i.test(u)) return false;
+  if (/facebook\.com\/watch\//i.test(u)) return false;
+  return true;
+}
+
+/**
+ * Meta Graph `/{video-id}?fields=source` — direct CDN URL for server-side download (ffmpeg).
+ * Omits permalink/embed fallbacks on purpose.
+ */
+export async function fetchDirectMetaVideoSourceUrl(
+  videoId: string,
+  token: string
+): Promise<string | null> {
+  try {
+    const fields = encodeURIComponent("source");
+    const vRes = await fetch(
+      `${GRAPH_BASE}/${encodeURIComponent(videoId)}?fields=${fields}&access_token=${encodeURIComponent(token)}`
+    );
+    const vData = (await vRes.json()) as { source?: string; error?: { message: string } };
+    if (vData.error) {
+      serverLogger.warn("Meta video source field not available", {
+        video_id: videoId,
+        message: vData.error.message,
+      });
+      return null;
+    }
+    const srcRaw = vData.source?.trim();
+    if (srcRaw && /^https?:\/\//i.test(srcRaw)) return srcRaw;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves a transcribable URL for an ad (Fly ffmpeg + OpenAI), using the user token.
+ * Stored `video_url` in DB is often a Facebook plugin URL — that cannot be used here.
+ */
+export async function fetchTranscribableVideoUrlForAd(
+  adId: string,
+  token: string
+): Promise<string | null> {
+  try {
+    const fields = encodeURIComponent(`creative{${CREATIVE_FIELDS}}`);
+    const res = await fetch(
+      `${GRAPH_BASE}/${encodeURIComponent(adId)}?fields=${fields}&access_token=${encodeURIComponent(token)}`
+    );
+    const data = (await res.json()) as {
+      creative?: RawCreative;
+      error?: { message: string };
+    };
+    if (data.error) {
+      serverLogger.warn("Ad node fetch for transcription URL failed", {
+        ad_id: adId,
+        message: data.error.message,
+      });
+      return null;
+    }
+    const creative = data.creative;
+    let videoId = extractVideoId(creative);
+    const hasVideoDataBlock = !!creative?.object_story_spec?.video_data;
+    const hasAssetFeedVideos =
+      Array.isArray(creative?.asset_feed_spec?.videos) &&
+      (creative?.asset_feed_spec?.videos?.length ?? 0) > 0;
+    const needsRefetch = !videoId && !!creative?.id && (hasVideoDataBlock || hasAssetFeedVideos);
+    if (needsRefetch && creative?.id) {
+      const ref = await fetchVideoIdFromCreativeNode(creative.id, token);
+      videoId = ref.videoId;
+    }
+    if (!videoId) return null;
+    return fetchDirectMetaVideoSourceUrl(videoId, token);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolve one ad's creative into a DB row plus diagnostics (for sync + debug API).
  */
 export async function resolveAdCreativeRow(
@@ -273,7 +368,8 @@ export async function resolveAdCreativeRow(
   const creative = ad.creative;
   const imageUrl =
     creative?.image_url ?? creative?.object_story_spec?.video_data?.image_url ?? "";
-  const linkUrl = creative?.object_story_spec?.link_data?.link ?? "";
+  const linkData = creative?.object_story_spec?.link_data;
+  const linkUrl = linkData?.link ?? "";
   const hasVideoDataBlock = !!creative?.object_story_spec?.video_data;
   const hasAssetFeedVideos =
     Array.isArray(creative?.asset_feed_spec?.videos) &&
@@ -301,7 +397,7 @@ export async function resolveAdCreativeRow(
   }
 
   const hasVideo = !!finalVideoId || hasVideoDataBlock || hasAssetFeedVideos;
-  const childAttachments = creative?.object_story_spec?.link_data?.child_attachments;
+  const childAttachments = linkData?.child_attachments;
   const isCarousel = Array.isArray(childAttachments) && childAttachments.length > 1;
 
   const carouselUrls: string[] = isCarousel
@@ -309,6 +405,14 @@ export async function resolveAdCreativeRow(
     : [];
 
   const creativeType = isCarousel ? "carousel" : hasVideo ? "video" : imageUrl ? "image" : "unknown";
+
+  const headline = isCarousel
+    ? String(childAttachments?.[0]?.name ?? "")
+    : String(linkData?.name ?? "");
+  const description = isCarousel
+    ? String(childAttachments?.[0]?.description ?? "")
+    : String(linkData?.description ?? "");
+  const ctaType = String(linkData?.call_to_action?.type ?? "");
 
   const storyShape = buildStoryShape(creative);
 
@@ -352,6 +456,9 @@ export async function resolveAdCreativeRow(
     thumbnail_url: creative?.thumbnail_url ?? "",
     image_url: imageUrl,
     body: creative?.body ?? "",
+    headline,
+    description,
+    cta_type: ctaType,
     link_url: linkUrl,
     creative_type: creativeType,
     video_url: videoUrl,

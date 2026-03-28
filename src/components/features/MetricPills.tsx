@@ -1,6 +1,6 @@
 "use client";
 
-import type { AdSummary } from "@/app/(dashboard)/dashboard/page";
+import type { AdSummary } from "@/lib/meta/ad-summary";
 
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat("en-IN", {

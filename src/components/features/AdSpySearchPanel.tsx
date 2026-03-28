@@ -47,11 +47,19 @@ import {
   Shapes,
   PanelsTopLeft,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { CompetitorAnalysisResult } from "@/lib/ai/competitor-analysis";
+import {
+  loadSavedAnalysesFromLocalStorage,
+  removeSavedAnalysisFromLocalStorageById,
+  upsertSavedAnalysisToLocalStorage,
+} from "@/lib/adspy/saved-analyses-local";
 import worldCountries from "world-countries";
+
+export { SAVED_ANALYSES_CHANGE_EVENT } from "@/lib/adspy/saved-analyses-local";
 
 /** Renders an analysis section in the AI report modal */
 function AnalysisSection({
@@ -487,7 +495,6 @@ function getDisplayCopy(text: string | null | undefined): string {
 const RECENT_PAGES_KEY = "adspy_recent_pages";
 export const SAVED_BOARDS_KEY = "adspy_saved_boards";
 export const SAVED_BOARDS_CHANGE_EVENT = "adspy_saved_boards_change";
-export const SAVED_ANALYSES_CHANGE_EVENT = "adspy_saved_analyses_change";
 const MAX_RECENT_PAGES = 8;
 
 type CountryOption = { code: string; name: string };
@@ -505,12 +512,54 @@ type SavedCompetitorAnalysis = {
   id: string;
   page_id: string;
   page_name: string;
-  analysis: CompetitorAnalysisResult;
+  analysis: CompetitorAnalysisResult | SavedMyAdAnalysisPayload;
   ad_count: number | null;
   dominant_format: string | null;
   created_at: string;
   updated_at: string;
 };
+
+type SavedMyAdDiagnosis = {
+  bottleneck?: string;
+  evidence?: string[];
+  priority_fix?: {
+    headline?: string;
+    primary_section?: string;
+    follow_section?: string;
+    rationale?: string;
+  };
+  fixes?: Array<{ type?: string; fix?: string }>;
+  audits?: {
+    body_copy?: { reason?: string; impact?: string; suggestions?: string[] };
+    ocr_text?: {
+      reason?: string;
+      impact?: string;
+      evidence?: string[];
+      suggestions?: Array<{ line?: string; change_type?: string; based_on?: string }>;
+    };
+    transcript_0_5s?: {
+      reason?: string;
+      impact?: string;
+      evidence?: string[];
+      suggestions?: Array<{ line?: string; change_type?: string; based_on?: string }>;
+    };
+  };
+};
+
+type SavedMyAdAnalysisPayload = {
+  surface?: "health_diagnosis";
+  ad_id?: string;
+  ad_name?: string;
+  date_from?: string;
+  date_to?: string;
+  diagnosis?: SavedMyAdDiagnosis;
+};
+
+function isSavedMyAdAnalysis(
+  analysis: CompetitorAnalysisResult | SavedMyAdAnalysisPayload
+): analysis is SavedMyAdAnalysisPayload {
+  return (analysis as SavedMyAdAnalysisPayload)?.surface === "health_diagnosis";
+}
 
 const COUNTRIES: CountryOption[] = [
   { code: "WW", name: "Worldwide" },
@@ -599,10 +648,14 @@ export function AdSpySearchPanel() {
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [analyzeLoading, setAnalyzeLoading] = useState(false);
   const [analyzeSaving, setAnalyzeSaving] = useState(false);
+  const [removeAnalysisLoadingId, setRemoveAnalysisLoadingId] = useState<string | null>(null);
+  const [boardsActionError, setBoardsActionError] = useState<string | null>(null);
   const [analyzeResult, setAnalyzeResult] = useState<CompetitorAnalysisResult | null>(null);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [activeAnalysisPageId, setActiveAnalysisPageId] = useState<string | null>(null);
   const [activeAnalysisPageName, setActiveAnalysisPageName] = useState<string | null>(null);
+  const [myAdAnalysisOpen, setMyAdAnalysisOpen] = useState(false);
+  const [activeMyAdAnalysis, setActiveMyAdAnalysis] = useState<SavedCompetitorAnalysis | null>(null);
 
   useEffect(() => {
     try {
@@ -631,29 +684,18 @@ export function AdSpySearchPanel() {
     }
   }, []);
 
-  async function loadSavedAnalyses() {
+  function loadSavedAnalyses() {
     setSavedAnalysesLoading(true);
     try {
-      const res = await fetch("/api/adspy/boards/analyses");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to load saved analyses");
-      setSavedAnalyses(Array.isArray(data.analyses) ? (data.analyses as SavedCompetitorAnalysis[]) : []);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent(SAVED_ANALYSES_CHANGE_EVENT, {
-            detail: Array.isArray(data.analyses) ? data.analyses.length : 0,
-          })
-        );
-      }
-    } catch {
-      setSavedAnalyses([]);
+      const list = loadSavedAnalysesFromLocalStorage() as SavedCompetitorAnalysis[];
+      setSavedAnalyses(list);
     } finally {
       setSavedAnalysesLoading(false);
     }
   }
 
   useEffect(() => {
-    void loadSavedAnalyses();
+    loadSavedAnalyses();
   }, []);
 
   function addToRecent(page: PageSuggestion) {
@@ -754,22 +796,26 @@ export function AdSpySearchPanel() {
     }
   }
 
-  async function handleSaveAnalysis() {
+  function handleSaveAnalysis() {
     if (!analyzeResult || !activeAnalysisPageId || !activeAnalysisPageName) return;
     setAnalyzeSaving(true);
     try {
-      const res = await fetch("/api/adspy/boards/analyses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          page_id: activeAnalysisPageId,
-          page_name: activeAnalysisPageName,
-          analysis: analyzeResult,
-        }),
+      const adCount =
+        typeof analyzeResult.total_active_ads?.count === "number"
+          ? analyzeResult.total_active_ads.count
+          : null;
+      const dominantFormat =
+        typeof analyzeResult.total_active_ads?.dominant_format === "string"
+          ? analyzeResult.total_active_ads.dominant_format
+          : null;
+      upsertSavedAnalysisToLocalStorage({
+        page_id: activeAnalysisPageId,
+        page_name: activeAnalysisPageName,
+        analysis: analyzeResult,
+        ad_count: adCount,
+        dominant_format: dominantFormat,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to save analysis");
-      await loadSavedAnalyses();
+      loadSavedAnalyses();
     } catch (e) {
       setAnalyzeError(e instanceof Error ? e.message : "Failed to save analysis");
     } finally {
@@ -777,22 +823,34 @@ export function AdSpySearchPanel() {
     }
   }
 
-  async function openSavedAnalysis(item: SavedCompetitorAnalysis) {
+  function openSavedAnalysis(item: SavedCompetitorAnalysis) {
+    if (isSavedMyAdAnalysis(item.analysis)) {
+      setActiveMyAdAnalysis(item);
+      setMyAdAnalysisOpen(true);
+      return;
+    }
     setActiveAnalysisPageId(item.page_id);
     setActiveAnalysisPageName(item.page_name);
     setAnalyzeError(null);
     setAnalyzeOpen(true);
-    setAnalyzeLoading(true);
+    setAnalyzeLoading(false);
+    setAnalyzeResult(item.analysis as CompetitorAnalysisResult);
+  }
+
+  function removeSavedAnalysis(id: string): void {
+    setBoardsActionError(null);
+    setRemoveAnalysisLoadingId(id);
     try {
-      const res = await fetch(`/api/adspy/boards/analyses/${item.id}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to load analysis");
-      setAnalyzeResult(data.analysis?.analysis ?? item.analysis);
+      removeSavedAnalysisFromLocalStorageById(id);
+      setSavedAnalyses((prev) => prev.filter((a) => a.id !== id));
+      if (activeMyAdAnalysis?.id === id) {
+        setMyAdAnalysisOpen(false);
+        setActiveMyAdAnalysis(null);
+      }
     } catch (e) {
-      setAnalyzeError(e instanceof Error ? e.message : "Failed to load analysis");
-      setAnalyzeResult(item.analysis);
+      setBoardsActionError(e instanceof Error ? e.message : "Failed to remove saved analysis");
     } finally {
-      setAnalyzeLoading(false);
+      setRemoveAnalysisLoadingId(null);
     }
   }
 
@@ -898,6 +956,16 @@ export function AdSpySearchPanel() {
 
     return groups;
   }, [boardAds, sortBy]);
+
+  const competitorSavedAnalyses = useMemo(
+    () => savedAnalyses.filter((item) => !isSavedMyAdAnalysis(item.analysis)),
+    [savedAnalyses]
+  );
+
+  const myAdSavedAnalyses = useMemo(
+    () => savedAnalyses.filter((item) => isSavedMyAdAnalysis(item.analysis)),
+    [savedAnalyses]
+  );
 
   const adStats = useMemo(() => {
     let winning = 0;
@@ -1431,39 +1499,15 @@ export function AdSpySearchPanel() {
         <div className="space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">My boards</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">My Boards</h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Saved competitor ads you want to revisit, compare, or remove later.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "active" | "expired")}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All ads</SelectItem>
-                  <SelectItem value="active">Active only</SelectItem>
-                  <SelectItem value="expired">Expired only</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as "newest" | "oldest" | "longest")}>
-                <SelectTrigger className="w-[170px]">
-                  <SelectValue placeholder="Sort ads" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Newest first</SelectItem>
-                  <SelectItem value="oldest">Oldest first</SelectItem>
-                  <SelectItem value="longest">Active longest</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
-
-          <div className="text-sm font-semibold text-muted-foreground">
-            {boardAds.length} saved ad{boardAds.length !== 1 ? "s" : ""} · {savedAnalyses.length} saved analys{savedAnalyses.length === 1 ? "is" : "es"}
-          </div>
+          {boardsActionError ? (
+            <p className="text-sm text-rose-600">{boardsActionError}</p>
+          ) : null}
 
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -1482,20 +1526,37 @@ export function AdSpySearchPanel() {
                   Loading saved analyses...
                 </CardContent>
               </Card>
-            ) : savedAnalyses.length > 0 ? (
+            ) : competitorSavedAnalyses.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {savedAnalyses.map((item) => (
-                  <button
+                {competitorSavedAnalyses.map((item) => (
+                  <div
                     key={item.id}
-                    type="button"
-                    onClick={() => openSavedAnalysis(item)}
-                    className="group rounded-2xl border border-border/70 bg-white p-5 text-left transition-all hover:border-[hsl(250,60%,55%)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(250,60%,55%)] focus-visible:ring-offset-2"
+                    className="group rounded-2xl border border-border/70 bg-white p-5 text-left transition-all hover:border-[hsl(250,60%,55%)] hover:shadow-md"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        
+                      <button
+                        type="button"
+                        onClick={() => openSavedAnalysis(item)}
+                        className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(250,60%,55%)] focus-visible:ring-offset-2 rounded-md"
+                      >
                         <p className="mt-2 text-xl font-semibold text-foreground">{item.page_name}</p>
-                      </div>
+                      </button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 shrink-0 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                        disabled={removeAnalysisLoadingId === item.id}
+                        onClick={() => void removeSavedAnalysis(item.id)}
+                        aria-label="Remove saved competitor analysis"
+                      >
+                        {removeAnalysisLoadingId === item.id ? (
+                          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-1.5 h-4 w-4" />
+                        )}
+                        Unsave
+                      </Button>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {item.ad_count != null && (
@@ -1508,9 +1569,11 @@ export function AdSpySearchPanel() {
                       </Badge>
                     </div>
                     <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">
-                      {item.analysis.executive_brief?.summary ?? item.analysis.strategic_summary?.core_strategy ?? "Saved competitor analysis"}
+                      {(item.analysis as CompetitorAnalysisResult).executive_brief?.summary ??
+                        (item.analysis as CompetitorAnalysisResult).strategic_summary?.core_strategy ??
+                        "Saved competitor analysis"}
                     </p>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -1526,8 +1589,92 @@ export function AdSpySearchPanel() {
           </div>
 
           <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">My Ads Analyses</h2>
+                <p className="text-sm text-muted-foreground">
+                  Saved diagnosis reports from your own ads. Open to view the exact same diagnosis details.
+                </p>
+              </div>
+            </div>
+
+            {savedAnalysesLoading ? (
+              <Card className="rounded-2xl border-border/70">
+                <CardContent className="py-10 flex items-center justify-center gap-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading saved analyses...
+                </CardContent>
+              </Card>
+            ) : myAdSavedAnalyses.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {myAdSavedAnalyses.map((item) => {
+                  const payload = item.analysis as SavedMyAdAnalysisPayload;
+                  return (
+                    <div
+                      key={item.id}
+                      className="group rounded-2xl border border-border/70 bg-white p-5 text-left transition-all hover:border-[hsl(250,60%,55%)] hover:shadow-md"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => openSavedAnalysis(item)}
+                          className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(250,60%,55%)] focus-visible:ring-offset-2 rounded-md"
+                        >
+                          <p className="mt-1 text-xl font-semibold text-foreground">{payload.ad_name ?? item.page_name}</p>
+                          {payload.date_from && payload.date_to ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {new Date(payload.date_from).toLocaleDateString()} - {new Date(payload.date_to).toLocaleDateString()}
+                            </p>
+                          ) : null}
+                        </button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 shrink-0 text-[hsl(250,60%,55%)] hover:bg-muted hover:text-[hsl(250,60%,48%)]"
+                          disabled={removeAnalysisLoadingId === item.id}
+                          onClick={() => void removeSavedAnalysis(item.id)}
+                          aria-label="Remove from my boards"
+                        >
+                          {removeAnalysisLoadingId === item.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Bookmark className="h-4 w-4 fill-current" />
+                          )}
+                        </Button>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Badge variant="outline" className="font-normal">
+                          My ad diagnosis
+                        </Badge>
+                        <Badge variant="outline" className="font-normal">
+                          Saved {new Date(item.updated_at).toLocaleDateString()}
+                        </Badge>
+                      </div>
+                      <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">
+                        {payload.diagnosis?.priority_fix?.headline ??
+                          payload.diagnosis?.bottleneck ??
+                          "Saved ad diagnosis"}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card className="rounded-2xl border-border/70">
+                <CardContent className="py-12 text-center">
+                  <p className="text-lg font-semibold text-foreground">No saved ad analyses yet</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Save diagnosis reports from your ads and they&apos;ll appear here.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <div className="space-y-3">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Saved ads</h2>
+              <h2 className="text-lg font-semibold text-foreground">Saved Ads</h2>
               <p className="text-sm text-muted-foreground">
                 Individual ad creatives bookmarked from the Ad Library.
               </p>
@@ -3353,6 +3500,135 @@ export function AdSpySearchPanel() {
                       </AnalysisSection>
                     </div>
                   </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={myAdAnalysisOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                setMyAdAnalysisOpen(false);
+                setActiveMyAdAnalysis(null);
+              }
+            }}
+          >
+            <DialogContent className="flex max-h-[92vh] w-[1120px] max-w-[94vw] flex-col gap-0 overflow-hidden rounded-[28px] border-border/40 p-0">
+              <DialogHeader className="shrink-0 space-y-0 border-b bg-white px-4 pb-4 pt-5 pr-14 text-left sm:px-7 sm:py-5 sm:pr-[5.5rem]">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div className="min-w-0 max-w-full sm:pr-2">
+                    <DialogTitle className="text-left text-lg leading-snug sm:text-xl">
+                      <span className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 shrink-0 text-[hsl(250,60%,55%)]" />
+                        <span className="font-semibold tracking-tight">My Ad Analysis</span>
+                      </span>
+                    </DialogTitle>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {activeMyAdAnalysis?.page_name ?? "Saved ad diagnosis"}
+                    </p>
+                  </div>
+                  {activeMyAdAnalysis && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-9 w-auto shrink-0 self-start"
+                      disabled={removeAnalysisLoadingId === activeMyAdAnalysis.id}
+                      onClick={() => void removeSavedAnalysis(activeMyAdAnalysis.id)}
+                    >
+                      {removeAnalysisLoadingId === activeMyAdAnalysis.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      Remove from My Boards
+                    </Button>
+                  )}
+                </div>
+              </DialogHeader>
+              <div className="flex-1 min-h-0 overflow-y-auto px-7 py-5">
+                {activeMyAdAnalysis && isSavedMyAdAnalysis(activeMyAdAnalysis.analysis) ? (
+                  <div className="space-y-6 pr-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-lg border border-border/50 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date range</p>
+                        <p className="mt-1 text-sm">
+                          {activeMyAdAnalysis.analysis.date_from ?? "—"} to {activeMyAdAnalysis.analysis.date_to ?? "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border/50 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bottleneck</p>
+                        <p className="mt-1 text-sm">{activeMyAdAnalysis.analysis.diagnosis?.bottleneck ?? "—"}</p>
+                      </div>
+                    </div>
+
+                    <AnalysisSection title="Evidence">
+                      {activeMyAdAnalysis.analysis.diagnosis?.evidence?.length ? (
+                        <ul className="space-y-1.5 text-sm">
+                          {activeMyAdAnalysis.analysis.diagnosis?.evidence?.map((line, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className="text-muted-foreground shrink-0">{i + 1}.</span>
+                              {line}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No evidence lines returned.</p>
+                      )}
+                    </AnalysisSection>
+
+                    <AnalysisSection title="Priority fix">
+                      <p className="text-sm font-medium">
+                        {activeMyAdAnalysis.analysis.diagnosis?.priority_fix?.headline ?? "No priority guidance available."}
+                      </p>
+                      {activeMyAdAnalysis.analysis.diagnosis?.priority_fix?.rationale ? (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {activeMyAdAnalysis.analysis.diagnosis?.priority_fix?.rationale}
+                        </p>
+                      ) : null}
+                    </AnalysisSection>
+
+                    <AnalysisSection title="Fixes to ship">
+                      {activeMyAdAnalysis.analysis.diagnosis?.fixes?.length ? (
+                        <ul className="space-y-2 text-sm">
+                          {activeMyAdAnalysis.analysis.diagnosis?.fixes?.map((fix, i) => (
+                            <li key={i}>
+                              <span className="font-medium">{fix.type ?? "Fix"}:</span> {fix.fix ?? "—"}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No fixes returned.</p>
+                      )}
+                    </AnalysisSection>
+
+                    <AnalysisSection title="On-image text analysis">
+                      <p className="text-sm text-muted-foreground">
+                        {activeMyAdAnalysis.analysis.diagnosis?.audits?.ocr_text?.reason ?? "No OCR analysis available."}
+                      </p>
+                      {activeMyAdAnalysis.analysis.diagnosis?.audits?.ocr_text?.suggestions?.length ? (
+                        <ul className="mt-3 space-y-2 text-sm">
+                          {activeMyAdAnalysis.analysis.diagnosis?.audits?.ocr_text?.suggestions?.map((s, i) => (
+                            <li key={i} className="rounded-md border border-border/50 bg-muted/20 p-3">
+                              <p className="font-medium">{s.line ?? "—"}</p>
+                              {s.based_on ? (
+                                <p className="mt-1 text-xs text-muted-foreground">{s.based_on}</p>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </AnalysisSection>
+
+                    <AnalysisSection title="Transcript analysis">
+                      <p className="text-sm text-muted-foreground">
+                        {activeMyAdAnalysis.analysis.diagnosis?.audits?.transcript_0_5s?.reason ??
+                          "No transcript analysis available."}
+                      </p>
+                    </AnalysisSection>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No saved diagnosis found.</p>
                 )}
               </div>
             </DialogContent>

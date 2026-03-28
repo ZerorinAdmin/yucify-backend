@@ -1,4 +1,8 @@
-import { extractVideoId, isMissingCreativeMediaColumnsError } from "./creatives";
+import {
+  extractVideoId,
+  isFfmpegIngestibleVideoUrl,
+  isMissingCreativeMediaColumnsError,
+} from "./creatives";
 
 describe("extractVideoId", () => {
   it("reads video_id from object_story_spec.video_data", () => {
@@ -26,6 +30,20 @@ describe("extractVideoId", () => {
         object_story_spec: { video_data: { image_url: "https://thumb" } },
       })
     ).toBeUndefined();
+  });
+});
+
+describe("isFfmpegIngestibleVideoUrl", () => {
+  it("rejects Facebook plugin video URLs", () => {
+    expect(
+      isFfmpegIngestibleVideoUrl(
+        "https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fwatch%2F&show_text=false"
+      )
+    ).toBe(false);
+  });
+
+  it("accepts typical CDN-style URLs", () => {
+    expect(isFfmpegIngestibleVideoUrl("https://video.xx.fbcdn.net/foo/bar.mp4")).toBe(true);
   });
 });
 

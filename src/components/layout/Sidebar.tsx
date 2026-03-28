@@ -10,6 +10,7 @@ import {
   SAVED_BOARDS_CHANGE_EVENT,
   SAVED_ANALYSES_CHANGE_EVENT,
 } from "@/components/features/AdSpySearchPanel";
+import { getSavedAnalysesCountFromLocalStorage } from "@/lib/adspy/saved-analyses-local";
 import {
   LayoutDashboard,
   Images,
@@ -39,7 +40,7 @@ const NAV_ITEMS = [
   { label: "Ad Library",   href: "/dashboard/adspy",      icon: Search },
   { label: "Funnel",        href: "/dashboard/funnel",     icon: GitGraph },
   { label: "Top Creatives", href: "/dashboard/creatives",  icon: Images },
-  { label: "Health Monitor", href: "/dashboard/health",    icon: ShieldCheck },
+  { label: "AD Diagnosis", href: "/dashboard/health", icon: ShieldCheck },
   { label: "Alerts",        href: "/dashboard/alerts",     icon: Bell },
 ];
 
@@ -74,16 +75,8 @@ function getSavedBoardsCount(): number {
   }
 }
 
-async function getSavedAnalysesCount(): Promise<number> {
-  if (typeof window === "undefined") return 0;
-  try {
-    const res = await fetch("/api/adspy/boards/analyses", { cache: "no-store" });
-    if (!res.ok) return 0;
-    const data = await res.json();
-    return Array.isArray(data.analyses) ? data.analyses.length : 0;
-  } catch {
-    return 0;
-  }
+function getSavedAnalysesCount(): number {
+  return getSavedAnalysesCountFromLocalStorage();
 }
 
 export function SidebarContent({
@@ -100,18 +93,15 @@ export function SidebarContent({
   useEffect(() => {
     let cancelled = false;
 
-    async function loadCounts() {
-      const [savedAdsCount, savedAnalysesCount] = await Promise.all([
-        Promise.resolve(getSavedBoardsCount()),
-        getSavedAnalysesCount(),
-      ]);
-
+    function loadCounts() {
+      const savedAdsCount = getSavedBoardsCount();
+      const savedAnalysesCount = getSavedAnalysesCount();
       if (!cancelled) {
         setSavedBoardsCount(savedAdsCount + savedAnalysesCount);
       }
     }
 
-    void loadCounts();
+    loadCounts();
 
     const handleSavedAdsChange = () => void loadCounts();
     const handleSavedAnalysesChange = (event: Event) => {

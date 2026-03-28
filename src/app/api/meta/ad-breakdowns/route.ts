@@ -167,11 +167,15 @@ export async function GET(req: Request) {
     }
     const vRow = videoRows?.[0] ?? {};
     // video_play_actions is sometimes empty while actions.video_view (3s views) is populated
-    const plays =
+    let plays =
       totalPlays ||
       extractVideoMetric(vRow.video_play_actions) ||
       totalVideoViewsFromActions ||
       extractByActionType(vRow.actions, "video_view");
+    // Retention buckets can still be returned without a separate "plays" field — use max bucket as denominator
+    if (plays === 0) {
+      plays = Math.max(totalP25, totalP50, totalP75, totalP100);
+    }
     const p100 = totalP100 || extractVideoMetric(vRow.video_p100_watched_actions);
     const impressions = totalImpressions || Number(vRow.impressions ?? 0);
     let videoViews3s =

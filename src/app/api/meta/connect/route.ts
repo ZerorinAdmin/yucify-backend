@@ -26,12 +26,18 @@ export async function GET(request: NextRequest) {
 
   const state = randomUUID();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const requestedNext = request.nextUrl.searchParams.get("next");
+  const returnPath =
+    requestedNext && requestedNext.startsWith("/")
+      ? requestedNext
+      : "/dashboard/connect-meta";
 
   const { error } = await supabase.from("meta_connect_flow").insert({
     state,
     user_id: user.id,
     ad_accounts: [],
     expires_at: expiresAt,
+    return_path: returnPath,
   });
 
   if (error) {

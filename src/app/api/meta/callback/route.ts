@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: flow, error: flowError } = await supabase
     .from("meta_connect_flow")
-    .select("user_id, expires_at")
+    .select("user_id, expires_at, return_path")
     .eq("state", state)
     .single();
 
@@ -97,5 +97,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/dashboard?meta=encrypt_failed`);
   }
 
-  return NextResponse.redirect(`${origin}/dashboard/connect-meta?state=${encodeURIComponent(state)}`);
+  const returnPath =
+    flow.return_path && String(flow.return_path).startsWith("/")
+      ? String(flow.return_path)
+      : "/dashboard/connect-meta";
+  const separator = returnPath.includes("?") ? "&" : "?";
+  return NextResponse.redirect(
+    `${origin}${returnPath}${separator}state=${encodeURIComponent(state)}`
+  );
 }

@@ -26,7 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { AdSummary } from "@/app/(dashboard)/dashboard/page";
+import type { AdSummary } from "@/lib/meta/ad-summary";
 
 type MetricDef = {
   id: string;

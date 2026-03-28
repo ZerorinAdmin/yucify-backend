@@ -6,7 +6,7 @@ import { OverallMetrics } from "@/components/features/OverallMetrics";
 import { CreativeVisualizer } from "@/components/features/CreativeVisualizer";
 import { AdsTable } from "@/components/features/AdsTable";
 import { AdDetailPanel } from "@/components/features/AdDetailPanel";
-import type { AdSummary } from "@/app/(dashboard)/dashboard/page";
+import type { AdSummary } from "@/lib/meta/ad-summary";
 
 type MetricRow = {
   ad_id: string;
@@ -74,6 +74,8 @@ export function DashboardClient({
       <AdDetailPanel
         ad={selectedAd}
         metrics={metrics}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
         open={!!selectedAd}
         onClose={() => setSelectedAd(null)}
       />

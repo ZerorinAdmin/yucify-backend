@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { DashboardLayoutClient } from "@/components/layout/DashboardLayoutClient";
+import { requiresOnboardingRedirect } from "@/lib/onboarding/server";
 
 export default async function DashboardLayout({
   children,
@@ -14,6 +15,11 @@ export default async function DashboardLayout({
 
   if (!user) {
     redirect("/");
+  }
+
+  const needsOnboarding = await requiresOnboardingRedirect(supabase, user.id);
+  if (needsOnboarding) {
+    redirect("/onboarding/intro");
   }
 
   const { data: accounts } = await supabase

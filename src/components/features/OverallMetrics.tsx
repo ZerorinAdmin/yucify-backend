@@ -22,7 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { AdSummary } from "@/app/(dashboard)/dashboard/page";
+import type { AdSummary } from "@/lib/meta/ad-summary";
 import type { MetricChange } from "@/lib/weekly/summary";
 
 function formatCurrency(n: number): string {
