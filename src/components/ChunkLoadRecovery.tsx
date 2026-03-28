@@ -23,6 +23,12 @@ function shouldReloadForChunkFailure(message: string): boolean {
  */
 export function ChunkLoadRecovery() {
   useEffect(() => {
+    if (window.location.hash === "#_=_") {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }, []);
+
+  useEffect(() => {
     const tryReload = () => {
       const now = Date.now();
       const last = Number(sessionStorage.getItem(STORAGE_KEY) || "0");
