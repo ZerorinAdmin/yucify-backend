@@ -54,7 +54,7 @@ function createMockSupabase(overrides: {
       }
       return {};
     },
-  };
+  } as unknown as Parameters<typeof getUserLimits>[0];
 }
 
 describe("usage/limits", () => {

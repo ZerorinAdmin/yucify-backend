@@ -1258,7 +1258,6 @@ function normalizePriorityFixForContext(parsed: AdAhaDiagnosisAI, input: AdAIInp
   // Absolute safety: transcript section is valid only for video ads with transcript text.
   if (!isVideoCreative || !hasTranscript) {
     if (primary === "transcript_0_5s") primary = hasOcr ? "creative_visual" : "caption";
-    if (follow === "transcript_0_5s") follow = primary === "caption" ? "fixes_to_ship" : "caption";
   }
 
   if (follow === primary) follow = "none";

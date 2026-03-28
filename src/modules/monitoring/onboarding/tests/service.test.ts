@@ -7,6 +7,7 @@ import type { OnboardingProfile } from "../types";
 function profile(overrides: Partial<OnboardingProfile>): OnboardingProfile {
   return {
     persona: null,
+    referral_source: null,
     onboarding_step: null,
     meta_connected: false,
     first_insight_viewed: false,

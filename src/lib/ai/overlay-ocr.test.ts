@@ -41,7 +41,7 @@ describe("extractOverlayTextFromImageUrl", () => {
     mockCreate.mockReset();
     process.env.OPENAI_API_KEY = "test";
     global.fetch = jest.fn().mockResolvedValue(
-      new Response(sampleImageBytes, {
+      new Response(sampleImageBytes as unknown as BodyInit, {
         status: 200,
         headers: { "Content-Type": "image/png" },
       })
