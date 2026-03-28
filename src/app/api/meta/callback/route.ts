@@ -108,10 +108,13 @@ export async function GET(request: NextRequest) {
       .update({
         meta_connected: true,
         onboarding_step: "meta_connected",
-        onboarding_completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", flow.user_id);
+
+    return NextResponse.redirect(
+      `${origin}/onboarding/select-account?state=${encodeURIComponent(state)}`
+    );
   }
 
   const separator = returnPath.includes("?") ? "&" : "?";

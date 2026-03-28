@@ -53,7 +53,7 @@ export function ConnectStep() {
         </div>
       </div>
 
-      <h1 className="text-[24px] font-semibold tracking-tight text-foreground">
+      <h1 className="text-[24px] font-medium tracking-tight text-foreground">
         See what&apos;s wasting your ad spend
       </h1>
       <p className="mt-3 max-w-3xl text-[16px] text-muted-foreground">

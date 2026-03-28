@@ -9,10 +9,11 @@ const STEP_ORDER: Record<string, number> = {
   intro: 0,
   proof: 1,
   connect: 2,
-  analyzing: 3,
-  results: 4,
-  insight: 5,
-  "next-step": 6,
+  "select-account": 3,
+  analyzing: 4,
+  results: 5,
+  insight: 6,
+  "next-step": 7,
 };
 
 const STEP_TO_MAX_ROUTE_ORDER: Record<
@@ -30,10 +31,11 @@ const ROUTE_BY_ORDER: Record<number, string> = {
   0: "/onboarding/intro",
   1: "/onboarding/proof",
   2: "/onboarding/connect",
-  3: "/onboarding/analyzing",
-  4: "/onboarding/results",
-  5: "/onboarding/insight",
-  6: "/onboarding/next-step",
+  3: "/onboarding/select-account",
+  4: "/onboarding/analyzing",
+  5: "/onboarding/results",
+  6: "/onboarding/insight",
+  7: "/onboarding/next-step",
 };
 
 function routeOrderFromPath(pathname: string): number | null {
