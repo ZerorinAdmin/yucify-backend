@@ -13,20 +13,16 @@ import {
 import { getSavedAnalysesCountFromLocalStorage } from "@/lib/adspy/saved-analyses-local";
 import {
   LayoutDashboard,
-  Images,
   ShieldCheck,
   Bell,
   LogOut,
-  Sparkles,
-  TrendingDown,
-  AlertTriangle,
-  Activity,
   ChevronRight,
   GitGraph,
   Search,
   Bookmark,
 } from "lucide-react";
 import { AccountSwitcher } from "@/components/features/AccountSwitcher";
+import { FeedbackDialog } from "@/components/features/FeedbackDialog";
 
 type Account = {
   id: string;
@@ -37,19 +33,14 @@ type Account = {
 
 const NAV_ITEMS = [
   { label: "Dashboard",     href: "/dashboard",            icon: LayoutDashboard },
-  { label: "Ad Library",   href: "/dashboard/adspy",      icon: Search },
+  { label: "AD Diagnosis",  href: "/dashboard/health",     icon: ShieldCheck },
+  { label: "Ad Library",    href: "/dashboard/adspy",      icon: Search },
   { label: "Funnel",        href: "/dashboard/funnel",     icon: GitGraph },
-  { label: "Top Creatives", href: "/dashboard/creatives",  icon: Images },
-  { label: "AD Diagnosis", href: "/dashboard/health", icon: ShieldCheck },
   { label: "Alerts",        href: "/dashboard/alerts",     icon: Bell },
 ];
 
 const REPORTS = [
   { label: "My Boards",      href: "/dashboard/adspy?view=boards", icon: Bookmark, dot: "bg-sky-400" },
-  { label: "All Active Ads",  href: "/dashboard/reports/all-active", icon: Activity,       dot: "bg-emerald-400" },
-  { label: "Top Performers",  href: "/dashboard/reports/top-performers", icon: Sparkles,       dot: "bg-violet-400" },
-  { label: "Declining Ads",   href: "/dashboard/reports/declining", icon: TrendingDown,   dot: "bg-amber-400" },
-  { label: "Fatigued Ads",    href: "/dashboard/reports/fatigued", icon: AlertTriangle,  dot: "bg-rose-400" },
 ];
 
 function hrefWithDateParams(href: string, searchParams: URLSearchParams | null): string {
@@ -223,7 +214,8 @@ export function SidebarContent({
       </nav>
 
       {/* Footer */}
-      <div className="shrink-0 border-t border-border/70 px-3 py-3">
+      <div className="shrink-0 border-t border-border/70 px-3 py-3 space-y-0.5">
+        <FeedbackDialog />
         <form action="/api/auth/signout" method="post">
           <button
             type="submit"

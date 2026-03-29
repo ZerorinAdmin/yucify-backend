@@ -76,7 +76,7 @@ export function UsageBadge() {
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-[240px]">
           <p className="text-sm">
-            Daily limits reset at midnight UTC. Scrapes count when loading new ads from the library; cache hits don&apos;t count.
+            Daily limits reset at midnight UTC. Searches and AI analysis count when loading or analyzing ads from the library; cache hits don&apos;t count.
           </p>
         </TooltipContent>
       </Tooltip>
