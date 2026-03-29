@@ -1,4 +1,5 @@
-create table if not exists public.user_feedback (
+-- User feedback submissions
+create table public.user_feedback (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   category text not null check (category in ('bug', 'feature', 'improvement', 'other')),

@@ -1,8 +1,7 @@
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { SignInButtons } from "@/components/auth/SignInButtons";
 import { requiresOnboardingRedirect } from "@/lib/onboarding/server";
+import { LandingPage } from "@/components/landing/LandingPage";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -18,26 +17,5 @@ export default async function HomePage() {
     redirect("/dashboard");
   }
 
-  return (
-    <main className="flex min-h-[100dvh] flex-col items-center justify-center bg-white p-6 sm:p-8">
-      <div className="w-full max-w-sm flex flex-col items-center text-center">
-        <Image
-          src="/yucify-logo.png"
-          alt="Yucify"
-          width={140}
-          height={42}
-          className="mb-6 w-auto h-10 object-contain"
-        />
-        <h1 className="text-2xl font-bold text-foreground">
-          Try Yucify for free
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          Meta intelligence tool for your successful ads campaign.
-        </p>
-        <div className="mt-8 w-full max-w-xs">
-          <SignInButtons />
-        </div>
-      </div>
-    </main>
-  );
+  return <LandingPage />;
 }

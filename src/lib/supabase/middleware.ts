@@ -37,7 +37,12 @@ export async function updateSession(request: NextRequest) {
       const authCookieNames = request.cookies
         .getAll()
         .map((c) => c.name)
-        .filter((name) => name.startsWith("sb-") && name.includes("-auth-token"));
+        .filter(
+          (name) =>
+            name.startsWith("sb-") &&
+            name.includes("-auth-token") &&
+            !name.includes("code-verifier")
+        );
 
       for (const cookieName of authCookieNames) {
         response.cookies.delete(cookieName);
