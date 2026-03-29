@@ -3657,25 +3657,7 @@ export function AdSpySearchPanel() {
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">No ads found for this page.</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Facebook may require login to show ad content. Run{" "}
-              <a
-                href={selectedPage ? `/api/adspy/debug?test=diagnose&page_id=${selectedPage.page_id}&country=${country}` : "/api/adspy/debug?test=diagnose"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[hsl(250,60%,55%)] hover:underline"
-              >
-                Debug → diagnose
-              </a>
-              {" or "}
-              <a
-                href={selectedPage ? `/api/adspy/debug?test=graphics&page_id=${selectedPage.page_id}&country=${country}` : "/api/adspy/debug?test=graphics"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[hsl(250,60%,55%)] hover:underline"
-              >
-                Debug → graphics
-              </a>{" "}
-              for this page.
+              Try a different country filter or check back later.
             </p>
           </CardContent>
         </Card>

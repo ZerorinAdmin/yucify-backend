@@ -1109,7 +1109,7 @@ export function AdDetailPanel({
                         </div>
                         <CardTitle className="text-base font-semibold">Run Diagnose Ads</CardTitle>
                         <CardDescription className="text-[13px] leading-relaxed">
-                          Click <strong>Diagnose Ads</strong> on the Health page to generate ad-level Issue/Cause/Fix for the top 3 ads.
+                          Click <strong>Diagnose Ads</strong> to generate ad-level Issue/Cause/Fix for the top 3 ads.
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="pb-6 text-center">

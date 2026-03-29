@@ -2016,7 +2016,7 @@ export function extractAdsFromDomInPage(): DomExtractedAd[] {
     );
   };
 
-  function getText(container: Element): string {
+  const getText = (container: Element): string => {
     const texts: string[] = [];
     const seen = new Set<string>();
     const addText = (t: string) => {
@@ -2037,7 +2037,7 @@ export function extractAdsFromDomInPage(): DomExtractedAd[] {
       if (t) addText(t);
     }
     return texts.length > 0 ? texts.join("\n\n").slice(0, 2000) : "";
-  }
+  };
 
   const isVideoUrlLocal = (u: string) =>
     u.includes("video.xx.fbcdn.net") ||
@@ -2047,7 +2047,7 @@ export function extractAdsFromDomInPage(): DomExtractedAd[] {
   /** Min size to treat as ad creative (exclude profile/logo ~50–120px). */
   const MIN_AD_IMAGE_SIZE = 180;
 
-  function collectMediaFromContainer(container: Element): { imageUrl: string | null; carouselUrls: string[]; videoUrl: string | null } {
+  const collectMediaFromContainer = (container: Element): { imageUrl: string | null; carouselUrls: string[]; videoUrl: string | null } => {
     const byUrl = new Map<string, number>(); // url -> pixel area (width*height)
     let videoUrl: string | null = null;
     const addImageUrl = (u: string, area = 0) => {
@@ -2125,9 +2125,9 @@ export function extractAdsFromDomInPage(): DomExtractedAd[] {
     if (carouselUrls.length === 0) carouselUrls = [...byUrl.keys()];
     const imageUrl = carouselUrls[0] ?? null;
     return { imageUrl, carouselUrls, videoUrl };
-  }
+  };
 
-  function getStartDateFromContainer(container: Element): string | null {
+  const getStartDateFromContainer = (container: Element): string | null => {
     const text = (container.textContent ?? "").trim();
     if (!text) return null;
     const startedMatch = text.match(/Started running on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
@@ -2143,9 +2143,9 @@ export function extractAdsFromDomInPage(): DomExtractedAd[] {
     const isoMatch = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
     if (isoMatch?.[1]) return isoMatch[1];
     return null;
-  }
+  };
 
-  function getCtaFromContainer(container: Element): string | null {
+  const getCtaFromContainer = (container: Element): string | null => {
     const skipText = /^(View on Meta|Ad creative|No caption|Sponsored|Learn more|See more|Filters|Sort|Remove|Remove Filters|Sort by|Active status)$/i;
     const isCtaLike = (t: string) =>
       t.length >= 2 &&
@@ -2192,9 +2192,9 @@ export function extractAdsFromDomInPage(): DomExtractedAd[] {
       }
     }
     return null;
-  }
+  };
 
-  function getLandingUrlFromContainer(container: Element): string | null {
+  const getLandingUrlFromContainer = (container: Element): string | null => {
     const links = container.querySelectorAll('a[href]');
     for (const a of links) {
       const href = (a as HTMLAnchorElement).href ?? a.getAttribute("href") ?? "";
@@ -2203,9 +2203,9 @@ export function extractAdsFromDomInPage(): DomExtractedAd[] {
       if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
     }
     return null;
-  }
+  };
 
-  function getAdIdFromContainer(container: Element): string | undefined {
+  const getAdIdFromContainer = (container: Element): string | undefined => {
     const adLink = container.querySelector('a[href*="ads/library"], a[href*="ads/archive"]');
     if (adLink) {
       const href = (adLink as HTMLAnchorElement).href ?? adLink.getAttribute("href") ?? "";
@@ -2242,7 +2242,7 @@ export function extractAdsFromDomInPage(): DomExtractedAd[] {
       el = el.parentElement;
     }
     return undefined;
-  }
+  };
 
   const getContainer = (el: Element): Element =>
     el.closest("[role='article']") ??
