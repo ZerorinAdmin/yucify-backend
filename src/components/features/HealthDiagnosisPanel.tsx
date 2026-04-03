@@ -275,6 +275,8 @@ export function HealthDiagnosisPanel({
           ...(raw.aiError !== undefined ? { aiError: raw.aiError } : {}),
         };
       });
+      localStorage.setItem("repto_done_overall_diagnosis", "1");
+      window.dispatchEvent(new Event("repto-checklist-update"));
     } catch {
       setError("Network error");
     } finally {
@@ -318,6 +320,8 @@ export function HealthDiagnosisPanel({
           ...(raw.aiError !== undefined ? { aiError: raw.aiError } : {}),
         };
       });
+      localStorage.setItem("repto_done_ad_diagnosis", "1");
+      window.dispatchEvent(new Event("repto-checklist-update"));
     } catch {
       setError("Network error");
     } finally {

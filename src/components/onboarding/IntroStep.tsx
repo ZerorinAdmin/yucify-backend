@@ -61,6 +61,34 @@ export function IntroStep() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const SIGNUP_PIXEL_KEY = "repto_signup_tracked";
+    if (localStorage.getItem(SIGNUP_PIXEL_KEY)) return;
+
+    const eventId = `cr_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    if (typeof window !== "undefined" && typeof window.fbq === "function") {
+      window.fbq("track", "CompleteRegistration", {}, { eventID: eventId });
+    }
+
+    const fbp = document.cookie.match(/(?:^|;\s*)_fbp=([^;]*)/)?.[1];
+    const fbc = document.cookie.match(/(?:^|;\s*)_fbc=([^;]*)/)?.[1];
+
+    fetch("/api/meta/capi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventName: "CompleteRegistration",
+        eventId,
+        eventSourceUrl: window.location.href,
+        ...(fbp ? { fbp } : {}),
+        ...(fbc ? { fbc } : {}),
+      }),
+    }).catch(() => {});
+
+    localStorage.setItem(SIGNUP_PIXEL_KEY, "1");
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {

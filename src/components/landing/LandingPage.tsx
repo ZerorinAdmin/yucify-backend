@@ -73,9 +73,9 @@ export function LandingPage() {
       {/* ─── Hero ─── */}
       <section className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-12 pb-8 text-center sm:pt-20">
         <h1 className="text-3xl font-medium leading-tight tracking-tight text-foreground sm:text-[44px] sm:leading-[1.15]">
-          You&apos;re losing money on your Meta&nbsp;ads.
+          You&apos;re losing money on your Meta&nbsp;ads
           <br />
-          We show you where.
+          We show you where
         </h1>
 
         <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
@@ -92,7 +92,7 @@ export function LandingPage() {
         </Button>
 
         <p className="mt-4 text-sm text-muted-foreground">
-          Trusted by founders and marketers
+          100+ founders, and marketers trusts us.
         </p>
       </section>
 

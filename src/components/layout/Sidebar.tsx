@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -14,15 +14,23 @@ import { getSavedAnalysesCountFromLocalStorage } from "@/lib/adspy/saved-analyse
 import {
   LayoutDashboard,
   ShieldCheck,
-  Bell,
   LogOut,
   ChevronRight,
+  ChevronDown,
   GitGraph,
-  Search,
   Bookmark,
+  Sparkles,
+  Circle,
+  CheckCircle2,
 } from "lucide-react";
 import { AccountSwitcher } from "@/components/features/AccountSwitcher";
 import { FeedbackDialog } from "@/components/features/FeedbackDialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type Account = {
   id: string;
@@ -34,9 +42,7 @@ type Account = {
 const NAV_ITEMS = [
   { label: "Dashboard",     href: "/dashboard",            icon: LayoutDashboard },
   { label: "AD Diagnosis",  href: "/dashboard/health",     icon: ShieldCheck },
-  { label: "Ad Library",    href: "/dashboard/adspy",      icon: Search },
   { label: "Funnel",        href: "/dashboard/funnel",     icon: GitGraph },
-  { label: "Alerts",        href: "/dashboard/alerts",     icon: Bell },
 ];
 
 const REPORTS = [
@@ -80,6 +86,51 @@ export function SidebarContent({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [savedBoardsCount, setSavedBoardsCount] = useState(0);
+  const [checklist, setChecklist] = useState({
+    metaConnected: false,
+    overallDiagnosis: false,
+    adDiagnosis: false,
+  });
+  const [checklistCollapsed, setChecklistCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("repto_checklist_collapsed") === "1";
+  });
+
+  useEffect(() => {
+    setChecklist({
+      metaConnected: accounts.length > 0,
+      overallDiagnosis: localStorage.getItem("repto_done_overall_diagnosis") === "1",
+      adDiagnosis: localStorage.getItem("repto_done_ad_diagnosis") === "1",
+    });
+    const handler = () => {
+      setChecklist((prev) => ({
+        ...prev,
+        overallDiagnosis: localStorage.getItem("repto_done_overall_diagnosis") === "1",
+        adDiagnosis: localStorage.getItem("repto_done_ad_diagnosis") === "1",
+      }));
+    };
+    window.addEventListener("repto-checklist-update", handler);
+    return () => window.removeEventListener("repto-checklist-update", handler);
+  }, [accounts.length]);
+
+  const [usage, setUsage] = useState<{
+    scrape: { used: number; limit: number };
+    analysis: { used: number; limit: number };
+  } | null>(null);
+
+  const fetchUsage = useCallback(() => {
+    fetch("/api/usage")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setUsage(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchUsage();
+    const handler = () => fetchUsage();
+    window.addEventListener("adspy-usage-refresh", handler);
+    return () => window.removeEventListener("adspy-usage-refresh", handler);
+  }, [fetchUsage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +263,158 @@ export function SidebarContent({
           </div>
         </div>
       </nav>
+
+      {/* Getting Started checklist */}
+      {(!checklist.metaConnected || !checklist.overallDiagnosis || !checklist.adDiagnosis) && (
+        <div className="shrink-0 mx-3 mb-2 rounded-xl bg-blue-50/80 border border-blue-100 p-3">
+          <button
+            type="button"
+            onClick={() => {
+              setChecklistCollapsed((prev) => {
+                const next = !prev;
+                localStorage.setItem("repto_checklist_collapsed", next ? "1" : "0");
+                return next;
+              });
+            }}
+            className="flex w-full items-center justify-between cursor-pointer"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-blue-600">
+              Getting Started
+            </p>
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 text-blue-400 transition-transform",
+                checklistCollapsed && "-rotate-90"
+              )}
+            />
+          </button>
+          {!checklistCollapsed && (
+            <TooltipProvider delayDuration={200}>
+              <div className="mt-3 space-y-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 cursor-default">
+                      {checklist.metaConnected ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" strokeWidth={2} />
+                      ) : (
+                        <Circle className="h-4 w-4 shrink-0 text-blue-300" strokeWidth={1.8} />
+                      )}
+                      <span className={cn(
+                        "text-[12px]",
+                        checklist.metaConnected
+                          ? "line-through text-blue-400/70"
+                          : "text-blue-700"
+                      )}>
+                        Connect Meta account
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[200px]">
+                    Connect your ad account from dashboard
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 cursor-default">
+                      {checklist.overallDiagnosis ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" strokeWidth={2} />
+                      ) : (
+                        <Circle className="h-4 w-4 shrink-0 text-blue-300" strokeWidth={1.8} />
+                      )}
+                      <span className={cn(
+                        "text-[12px]",
+                        checklist.overallDiagnosis
+                          ? "line-through text-blue-400/70"
+                          : "text-blue-700"
+                      )}>
+                        Diagnose overall ads
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[220px]">
+                    Go to AD Diagnosis page, click on Refresh Verdict to analyze how your ads are performing in general
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 cursor-default">
+                      {checklist.adDiagnosis ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" strokeWidth={2} />
+                      ) : (
+                        <Circle className="h-4 w-4 shrink-0 text-blue-300" strokeWidth={1.8} />
+                      )}
+                      <span className={cn(
+                        "text-[12px]",
+                        checklist.adDiagnosis
+                          ? "line-through text-blue-400/70"
+                          : "text-blue-700"
+                      )}>
+                        Diagnose individual ads
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[220px]">
+                    Go to AD Diagnosis page, click on Diagnose Ads to analyze individual ads and fix the issues
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
+          )}
+        </div>
+      )}
+
+      {/* AI Usage */}
+      {usage && (
+        <div className="shrink-0 border-t border-border/70 px-4 py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-3.5 w-3.5 text-[hsl(250,60%,55%)]" />
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              Usage
+            </p>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[12px] text-muted-foreground">AI Analyses</span>
+                <span className="text-[11px] font-medium tabular-nums text-foreground">
+                  {usage.analysis.used}/{usage.analysis.limit}
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted/80">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    usage.analysis.used >= usage.analysis.limit
+                      ? "bg-amber-500"
+                      : "bg-[hsl(250,60%,55%)]"
+                  )}
+                  style={{ width: `${Math.min(100, (usage.analysis.used / Math.max(usage.analysis.limit, 1)) * 100)}%` }}
+                />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[12px] text-muted-foreground">Searches</span>
+                <span className="text-[11px] font-medium tabular-nums text-foreground">
+                  {usage.scrape.used}/{usage.scrape.limit}
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted/80">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    usage.scrape.used >= usage.scrape.limit
+                      ? "bg-amber-500"
+                      : "bg-[hsl(250,60%,55%)]"
+                  )}
+                  style={{ width: `${Math.min(100, (usage.scrape.used / Math.max(usage.scrape.limit, 1)) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+          <p className="mt-2.5 text-[10px] text-muted-foreground/70">Resets daily at midnight UTC</p>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="shrink-0 border-t border-border/70 px-3 py-3 space-y-0.5">
