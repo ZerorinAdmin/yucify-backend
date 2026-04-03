@@ -38,6 +38,8 @@ export async function sendCAPIEvent(event: CAPIEvent): Promise<{ success: boolea
   if (event.userData.fbp) userData.fbp = event.userData.fbp;
   if (event.userData.fbc) userData.fbc = event.userData.fbc;
 
+  const testCode = process.env.META_CAPI_TEST_EVENT_CODE;
+
   const payload = {
     data: [
       {
@@ -50,6 +52,7 @@ export async function sendCAPIEvent(event: CAPIEvent): Promise<{ success: boolea
         ...(event.customData ? { custom_data: event.customData } : {}),
       },
     ],
+    ...(testCode ? { test_event_code: testCode } : {}),
   };
 
   const url = `https://graph.facebook.com/${META_VERSION}/${pixelId}/events?access_token=${encodeURIComponent(token)}`;
