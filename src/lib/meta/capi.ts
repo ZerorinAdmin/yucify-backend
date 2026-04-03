@@ -25,9 +25,9 @@ type CAPIEvent = {
 
 export async function sendCAPIEvent(event: CAPIEvent): Promise<{ success: boolean; error?: string }> {
   const token = process.env.META_CAPI_ACCESS_TOKEN;
-  const pixelId = process.env.META_APP_ID;
+  const pixelId = process.env.META_PIXEL_ID;
   if (!token || !pixelId) {
-    console.warn("[meta-capi] META_CAPI_ACCESS_TOKEN or META_APP_ID not configured, skipping server event");
+    console.warn("[meta-capi] META_CAPI_ACCESS_TOKEN or META_PIXEL_ID not configured, skipping server event");
     return { success: false, error: "CAPI not configured" };
   }
 
